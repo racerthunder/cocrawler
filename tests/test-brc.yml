@@ -5,11 +5,11 @@ Crawl:
   RetryTimeout: 0.1
 
 Plugins:
-  url_allowed: OnlySeeds
+  url_allowed: AllDomains
 
-Seeds:
-  Hosts:
-  - http://tut.by
+#Seeds:
+  #Hosts:
+  #- http://tut.by
   #Files:
   #- test-wide.hosts
 

@@ -23,3 +23,187 @@
 {"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795453.6865962}
 {"action": "deny", "error": "no robots info known"}
 {"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "final_host": "https://www.tut.by", "has-sitemaps": 1, "host": "http://tut.by", "redir_history": ["http://tut.by/robots.txt", "https://www.tut.by/robots.txt"], "size": 2123, "status": 200, "t_first_byte": "0.849", "time": 1528795496.658429, "user-agents": 3}
+{"action": "fetch", "action-lines": 33, "checksum": "sha1:e6f02e09da2cdf6624b17a1cd3a65039e4fc247a", "final_host": "https://habr.com", "host": "http://habr.com", "redir_history": ["http://habr.com/robots.txt", "https://habr.com/robots.txt"], "size": 746, "status": 200, "t_first_byte": "0.740", "time": 1528803822.032485, "user-agents": 4}
+{"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "final_host": "https://www.tut.by", "has-sitemaps": 1, "host": "http://tut.by", "redir_history": ["http://tut.by/robots.txt", "https://www.tut.by/robots.txt"], "size": 2123, "status": 200, "t_first_byte": "0.828", "time": 1528803822.135051, "user-agents": 3}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:5a1aaca5ea322f3df1ca40a39e2f90f8af39fc7f", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://mc.yandex.ru", "size": 26, "status": 200, "t_first_byte": "0.378", "time": 1528803823.1994398, "user-agents": 1}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://dr.habracdn.net", "status": 404, "t_first_byte": "0.437", "time": 1528803823.269506}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://tag.digitaltarget.ru", "status": 404, "t_first_byte": "0.526", "time": 1528803823.348383}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "fetch", "action-lines": 3, "checksum": "sha1:0da6b2e11a59235147ce0f8072ed7ac748e30588", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://pagead2.googlesyndication.com", "size": 75, "status": 200, "t_first_byte": "0.349", "time": 1528803823.786538, "user-agents": 1}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://cdn.onthe.io", "status": 404, "t_first_byte": "0.377", "time": 1528803824.054425}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "fetch", "action-lines": 52, "checksum": "sha1:0ba99236bc7bcc387a5755f022e075e6e4b88998", "has-sitemaps": 4, "host": "https://news.tut.by", "size": 1725, "status": 200, "t_first_byte": "0.566", "time": 1528803824.5385559, "user-agents": 4}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:4ef8cd6e39e51e751db225a9f0aa4ff1fd08e7db", "host": "https://img.tam.by", "size": 32, "status": 200, "t_first_byte": "0.702", "time": 1528803824.569684, "user-agents": 1}
+{"action": "fetch", "checksum": "sha1:07eef7022973168e47ca46db25a9e40e8f473362", "error": "saw an implausible robots.txt, treating as empty", "host": "https://cdnjs.cloudflare.com", "implausible": "robots appears to be html or xml", "redir_history": ["https://cdnjs.cloudflare.com/robots.txt", "http://www.cdnjs.com/", "https://cdnjs.com/"], "status": 200, "t_first_byte": "1.231", "time": 1528803824.6016881}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:74723da042bf830ff4744614d3fadb27bad9f757", "host": "https://img.tyt.by", "size": 25, "status": 200, "t_first_byte": "1.012", "time": 1528803825.293922, "user-agents": 1}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:94ba022bdf55739e2a1ca8bde87d26f49b625494", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://reklama.tut.by", "size": 47, "status": 200, "t_first_byte": "1.179", "time": 1528803825.2966669, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://ad.mail.ru", "size": 26, "status": 200, "t_first_byte": "0.763", "time": 1528803825.625859, "user-agents": 1}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:bb222e03fffe5fd7c41eaad1b16bf5ba22ab54ea", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://preved.tut.by", "size": 46, "status": 200, "t_first_byte": "1.056", "time": 1528803825.925489, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:15c9845b57460f62c96b8f3a79cc19f093cd99c9", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://bugaga.tut.by", "size": 46, "status": 200, "t_first_byte": "1.798", "time": 1528803826.4373271, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://static.criteo.net", "size": 26, "status": 200, "t_first_byte": "0.343", "time": 1528803826.582154, "user-agents": 1}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://www.googletagservices.com", "status": 404, "t_first_byte": "0.409", "time": 1528803826.7448971}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://yastatic.net", "status": 404, "t_first_byte": "2.061", "time": 1528803826.925264}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:cd359ff846404c8f37dacf2f99e82033daab3f3a", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s4r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.704", "time": 1528803827.0792599, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/api?1"}
+{"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "has-sitemaps": 1, "host": "http://www.tut.by", "size": 2123, "status": 200, "t_first_byte": "0.610", "time": 1528803827.354164, "user-agents": 3}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://moikrug.ru", "status": 404, "t_first_byte": "0.416", "time": 1528803827.484809}
+{"action": "fetch", "action-lines": 20, "checksum": "sha1:4af64af02f9cf3c4e2cedcd63de123f6726e85bb", "has-sitemaps": 1, "host": "https://sport.tut.by", "size": 435, "status": 200, "t_first_byte": "0.594", "time": 1528803827.7632902, "user-agents": 2}
+{"action": "fetch", "action-lines": 30, "checksum": "sha1:2e79bab9bbc33184b889fc257477f570d016bbb9", "final_host": "https://jobs.tut.by", "has-sitemaps": 1, "host": "http://jobs.tut.by", "redir_history": ["http://jobs.tut.by/robots.txt", "https://jobs.tut.by/robots.txt"], "size": 864, "status": 200, "t_first_byte": "0.946", "time": 1528803827.866803, "user-agents": 6}
+{"action": "deny", "url": "/watch/38498795"}
+{"action": "deny", "url": "/watch/38498795"}
+{"action": "fetch", "action-lines": 31, "checksum": "sha1:a01e656a679b545239c0431773fc5c474702ef0c", "has-sitemaps": 2, "host": "https://finance.tut.by", "size": 830, "status": 200, "t_first_byte": "0.716", "time": 1528803828.172812, "user-agents": 2}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://www.googleadservices.com", "size": 26, "status": 200, "t_first_byte": "0.491", "time": 1528803828.6673, "user-agents": 1}
+{"action": "deny", "url": "/pagead/conversion.js"}
+{"action": "deny", "url": "/pagead/conversion.js"}
+{"action": "deny", "url": "/pagead/conversion/994570378/?value=0&label=w2mCCK7u8gUQiuGf2gM&guid=ON&script=0"}
+{"action": "deny", "url": "/pagead/conversion/994570378/?value=0&label=w2mCCK7u8gUQiuGf2gM&guid=ON&script=0"}
+{"action": "deny", "url": "/pagead/conversion.js"}
+{"action": "fetch", "action-lines": 214, "checksum": "sha1:32a6c82e1404adfc95a9ccf09323154105697a77", "generic-deny-slash": true, "google-deny-slash": false, "host": "https://www.facebook.com", "size": 5678, "status": 200, "t_first_byte": "0.419", "time": 1528803829.174927, "user-agents": 14}
+{"action": "deny", "google-action": "allow", "url": "/tr?id=644378592349624&ev=PixelInitialized"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:91cc062f771a47792d779fce8aacdcbb72498a61", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s2r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.733", "time": 1528803829.198786, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/pagead/conversion/994570378/?value=0&label=w2mCCK7u8gUQiuGf2gM&guid=ON&script=0"}
+{"action": "deny", "url": "/watch/157487"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:22df789b2118a544e98e93741ad3db4ff2ca6d1c", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s1r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.877", "time": 1528803829.3707688, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "fetch", "action-lines": 22, "checksum": "sha1:c48b5d5e57931f95bdca02331416e7fb0bbbd4e7", "host": "https://cdn.ampproject.org", "size": 657, "status": 200, "t_first_byte": "0.525", "time": 1528803829.409514, "user-agents": 2}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://www.googletagmanager.com", "status": 404, "t_first_byte": "0.313", "time": 1528803829.6874728}
+{"action": "fetch", "action-lines": 33, "checksum": "sha1:e6f02e09da2cdf6624b17a1cd3a65039e4fc247a", "final_host": "https://habr.com", "host": "http://habr.com", "redir_history": ["http://habr.com/robots.txt", "https://habr.com/robots.txt"], "size": 746, "status": 200, "t_first_byte": "0.726", "time": 1528810422.432592, "user-agents": 4}
+{"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "final_host": "https://www.tut.by", "has-sitemaps": 1, "host": "http://tut.by", "redir_history": ["http://tut.by/robots.txt", "https://www.tut.by/robots.txt"], "size": 2123, "status": 200, "t_first_byte": "0.814", "time": 1528810422.52953, "user-agents": 3}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://www.googletagservices.com", "status": 404, "t_first_byte": "0.299", "time": 1528810423.507724}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://dr.habracdn.net", "status": 404, "t_first_byte": "0.436", "time": 1528810423.6509812}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://tag.digitaltarget.ru", "status": 404, "t_first_byte": "0.483", "time": 1528810423.686455}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:5a1aaca5ea322f3df1ca40a39e2f90f8af39fc7f", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://mc.yandex.ru", "size": 26, "status": 200, "t_first_byte": "0.359", "time": 1528810424.032413, "user-agents": 1}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:15c9845b57460f62c96b8f3a79cc19f093cd99c9", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://bugaga.tut.by", "size": 46, "status": 200, "t_first_byte": "0.510", "time": 1528810424.322253, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "deny", "url": "/"}
+{"action": "fetch", "action-lines": 52, "checksum": "sha1:0ba99236bc7bcc387a5755f022e075e6e4b88998", "has-sitemaps": 4, "host": "https://news.tut.by", "size": 1725, "status": 200, "t_first_byte": "0.788", "time": 1528810424.6377091, "user-agents": 4}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://cdn.onthe.io", "status": 404, "t_first_byte": "0.479", "time": 1528810424.705635}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "deny", "url": "/?lang=bel"}
+{"action": "deny", "url": "/watch/17863687"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:74723da042bf830ff4744614d3fadb27bad9f757", "host": "https://img.tyt.by", "size": 25, "status": 200, "t_first_byte": "0.661", "time": 1528810425.166906, "user-agents": 1}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "fetch", "action-lines": 3, "checksum": "sha1:0da6b2e11a59235147ce0f8072ed7ac748e30588", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://pagead2.googlesyndication.com", "size": 75, "status": 200, "t_first_byte": "0.388", "time": 1528810425.34402, "user-agents": 1}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:cd359ff846404c8f37dacf2f99e82033daab3f3a", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s4r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.525", "time": 1528810425.381772, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/watch/46086984?ut=noindex"}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/api?1"}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/watch/24049213"}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/pagead/show_ads.js"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:94ba022bdf55739e2a1ca8bde87d26f49b625494", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://reklama.tut.by", "size": 47, "status": 200, "t_first_byte": "1.206", "time": 1528810426.3277829, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/pagead/js/adsbygoogle.js"}
+{"action": "deny", "url": "/"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://ad.mail.ru", "size": 26, "status": 200, "t_first_byte": "1.143", "time": 1528810426.5513139, "user-agents": 1}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "deny", "url": "/static/ads-async.js"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://static.criteo.net", "size": 26, "status": 200, "t_first_byte": "0.770", "time": 1528810426.819768, "user-agents": 1}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:bb222e03fffe5fd7c41eaad1b16bf5ba22ab54ea", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://preved.tut.by", "size": 46, "status": 200, "t_first_byte": "0.780", "time": 1528810426.837018, "user-agents": 1}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/"}
+{"action": "deny", "url": "/js/ld/publishertag.js"}
+{"action": "deny", "url": "/"}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:4ef8cd6e39e51e751db225a9f0aa4ff1fd08e7db", "host": "https://img.tam.by", "size": 32, "status": 200, "t_first_byte": "0.507", "time": 1528810427.1468859, "user-agents": 1}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://yastatic.net", "status": 404, "t_first_byte": "1.721", "time": 1528810427.4645069}
+{"action": "fetch", "checksum": "sha1:0355f2455d01055226dbae2492c3b72e6c4500c6", "error": "saw an implausible robots.txt, treating as empty", "host": "https://cdnjs.cloudflare.com", "implausible": "robots appears to be html or xml", "redir_history": ["https://cdnjs.cloudflare.com/robots.txt", "http://www.cdnjs.com/", "https://cdnjs.com/"], "status": 200, "t_first_byte": "1.801", "time": 1528810427.523892}
+{"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "has-sitemaps": 1, "host": "http://www.tut.by", "size": 2123, "status": 200, "t_first_byte": "0.243", "time": 1528810427.578036, "user-agents": 3}
+{"action": "fetch", "action-lines": 226, "checksum": "sha1:65fb4802471ecb79d4b36bb5a4fd185f4dd6133a", "host": "http://talks.by", "size": 4970, "status": 200, "t_first_byte": "0.330", "time": 1528810427.8299341, "user-agents": 3}
+{"action": "fetch", "action-lines": 38, "checksum": "sha1:4a133c5684b3d386af7d2f99af29162d135851d1", "has-sitemaps": 1, "host": "https://kupi.tut.by", "size": 977, "status": 200, "t_first_byte": "1.060", "time": 1528810427.833211, "user-agents": 14}
+{"action": "fetch", "action-lines": 30, "checksum": "sha1:2e79bab9bbc33184b889fc257477f570d016bbb9", "has-sitemaps": 1, "host": "https://jobs.tut.by", "size": 864, "status": 200, "t_first_byte": "0.977", "time": 1528810427.983886, "user-agents": 6}
+{"action": "fetch", "action-lines": 35, "checksum": "sha1:da3090db1fee833022952050c2747c285f7fbccd", "has-sitemaps": 2, "host": "https://afisha.tut.by", "size": 785, "status": 200, "t_first_byte": "1.213", "time": 1528810428.3312871, "user-agents": 2}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://www.googletagmanager.com", "status": 404, "t_first_byte": "0.494", "time": 1528810428.552166}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:63657cbb7d7086c56b0cd4e5c6999bb683664868", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://www.googleadservices.com", "size": 26, "status": 200, "t_first_byte": "0.391", "time": 1528810429.2061079, "user-agents": 1}
+{"action": "deny", "url": "/pagead/conversion/994570378/?value=0&label=w2mCCK7u8gUQiuGf2gM&guid=ON&script=0"}
+{"action": "deny", "url": "/pagead/conversion.js"}
+{"action": "fetch", "checksum": "sha1:9bfd6eebe702427e79ebfc76264308cc8d5c0dbb", "error": "saw an implausible robots.txt, treating as empty", "host": "https://u.tmtm.ru", "implausible": "robots appears to be html or xml", "redir_history": ["https://u.tmtm.ru/robots.txt", "https://tmtm.ru"], "status": 200, "t_first_byte": "1.475", "time": 1528810429.2800078}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:280e4cac388b2b67084c5007404400e45c12344c", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s3r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.753", "time": 1528810429.7005088, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "fetch", "action-lines": 214, "checksum": "sha1:32a6c82e1404adfc95a9ccf09323154105697a77", "generic-deny-slash": true, "google-deny-slash": false, "host": "https://www.facebook.com", "size": 5678, "status": 200, "t_first_byte": "1.497", "time": 1528810429.7249029, "user-agents": 14}
+{"action": "deny", "google-action": "allow", "url": "/tr?id=644378592349624&ev=PixelInitialized"}
+{"action": "deny", "google-action": "allow", "url": "/tr?id=644378592349624&ev=PixelInitialized"}
+{"action": "deny", "url": "/metrika/watch.js"}
+{"action": "deny", "url": "/pagead/conversion/994570378/?value=0&label=w2mCCK7u8gUQiuGf2gM&guid=ON&script=0"}
+{"action": "deny", "url": "/pagead/conversion.js"}
+{"action": "deny", "url": "/metrika/watch.js"}
+{"action": "deny", "url": "/export/tickets/?id=3&timer"}
+{"action": "deny", "google-action": "allow", "url": "/tr?id=644378592349624&ev=PixelInitialized"}
+{"action": "deny", "google-action": "allow", "url": "/tr?id=644378592349624&ev=PixelInitialized"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://img.afisha.tut.by", "status": 401, "t_first_byte": "0.864", "time": 1528810430.2146938}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://top-fwz1.mail.ru", "status": 404, "t_first_byte": "0.575", "time": 1528810430.304945}
+{"action": "fetch", "action-lines": 1, "checksum": "sha1:91cc062f771a47792d779fce8aacdcbb72498a61", "generic-deny-slash": true, "google-deny-slash": true, "host": "https://s2r.tut.by", "size": 43, "status": 200, "t_first_byte": "0.520", "time": 1528810430.396734, "user-agents": 1}
+{"action": "deny", "url": "/api?1"}
+{"action": "fetch", "error": "got a 4xx, treating as empty robots", "host": "https://resize.yandex.net", "status": 400, "t_first_byte": "0.604", "time": 1528810430.659931}
