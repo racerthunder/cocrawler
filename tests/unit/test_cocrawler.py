@@ -69,7 +69,9 @@ def misc():
 
     crawler.add_url(0, {'url': URL('http://tut.by/')})
     crawler.add_url(0, {'url': URL('http://habr.com/')})
-    crawler.crawl()
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(crawler.crawl())
 
     crawler.summarize()
 
@@ -86,6 +88,6 @@ def misc2():
         pass
 
 if __name__ == '__main__':
-    #misc()
+    misc()
     #misc2()
     pass

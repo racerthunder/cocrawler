@@ -478,7 +478,7 @@ class Crawler:
         '''
         Run the crawler until it's out of work
         '''
-        #self.control_limit_worker = asyncio.Task(self.control_limit())
+        self.control_limit_worker = asyncio.Task(self.control_limit())
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
 
         # this is now the 'main' coroutine

@@ -23,14 +23,3 @@ UserAgent:
   Style: crawler
   MyPrefix: test-wide
   URL: http://example.com/cocrawler.html
-
-Testing:
-  TestHostmapAll: 127.0.0.1:8080
-  StatsEQ:
-    fetch http code=200: 11
-    fetch http code=303: 1
-    max urls found on a page: 3
-    rejected by seen_urls: 2
-    robots denied: 4
-  StatsGE:
-    fetch http code=503: 1

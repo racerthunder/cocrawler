@@ -36,8 +36,6 @@ ARGS.add_argument('--load', action='store')
 
 def limit_resources():
     _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    if sys.platform=='darwin':
-        hard = 8
     # XXX warn if too few compared to max_wokers?
     resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
@@ -68,7 +66,7 @@ def main():
 
     config.config(args.configfile, args.config, confighome=not args.no_confighome)
 
-    limit_resources()
+    #limit_resources()
 
     if os.getenv('PYTHONASYNCIODEBUG') is not None:
         logging.captureWarnings(True)
@@ -87,7 +85,7 @@ def main():
         kwargs['load'] = args.load
     if args.no_test:
         kwargs['no_test'] = True
-        
+
     crawler = cocrawler.Crawler(**kwargs)
     loop = asyncio.get_event_loop()
     slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')

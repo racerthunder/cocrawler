@@ -1,0 +1,25 @@
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795177.949365}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795178.053167}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795178.153814}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795178.2507}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795393.058399}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795393.157661}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795393.258854}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795393.3630772}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795453.3844008}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795453.487783}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795453.5858161}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "error": "max tries exceeded, final exception is: ClientConnectorError(61, 'Connection refused')", "host": "http://tut.by", "time": 1528795453.6865962}
+{"action": "deny", "error": "no robots info known"}
+{"action": "fetch", "action-lines": 97, "checksum": "sha1:5d18c79f88da14bf8dc9e48b93cf2a8888a67808", "final_host": "https://www.tut.by", "has-sitemaps": 1, "host": "http://tut.by", "redir_history": ["http://tut.by/robots.txt", "https://www.tut.by/robots.txt"], "size": 2123, "status": 200, "t_first_byte": "0.849", "time": 1528795496.658429, "user-agents": 3}
