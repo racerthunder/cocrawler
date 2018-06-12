@@ -302,13 +302,14 @@ class Crawler:
                     geoip.lookup_all(addrs, host_geoip)
                 post_fetch.post_dns(addrs, expires, url, self)
 
-        r = await self.robots.check(url, host_geoip, seed_host, self,
-                                    headers=req_headers, proxy=proxy, mock_robots=mock_robots)
-        if not r:
-            # really, we shouldn't retry a robots.txt rule failure
-            # but we do want to retry robots.txt failed to fetch
-            self._retry_if_able(work, ridealong)
-            return
+        if not self.mode == 'cruzer':
+            r = await self.robots.check(url, host_geoip, seed_host, self,
+                                        headers=req_headers, proxy=proxy, mock_robots=mock_robots)
+            if not r:
+                # really, we shouldn't retry a robots.txt rule failure
+                # but we do want to retry robots.txt failed to fetch
+                self._retry_if_able(work, ridealong)
+                return
 
         f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
                                 headers=req_headers, proxy=proxy, mock_url=mock_url)
