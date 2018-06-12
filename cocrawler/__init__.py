@@ -183,7 +183,7 @@ class Crawler:
         # and ...
 
         url = ridealong['url']
-        
+
         if self.mode != 'cruzer':
             if 'seed' in ridealong:
                 seeds.seed_from_redir(url)
@@ -373,7 +373,7 @@ class Crawler:
         try:
             task = next(task_generator)
             ride_along = self.get_ridealong(task)
-            self.add_url(0,ride_along)
+            self.add_url(1,ride_along)
         except (StopIteration,TypeError):
             # TypeError is raised when task returns nothing
             LOGGER.debug('--> No task left in: {0}'.format(task_name))
@@ -518,7 +518,7 @@ class Crawler:
     def load_initial(self):
         for task in self.task_generator():
             ride_along = self.get_ridealong(task)
-            self.add_url(0,ride_along)
+            self.add_url(1,ride_along)
 
     async def crawl(self):
         '''
