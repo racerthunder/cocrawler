@@ -26,7 +26,7 @@ faulthandler.enable()
 
 ARGS = argparse.ArgumentParser(description='CoCrawler web crawler')
 ARGS.add_argument('--config', action='append')
-ARGS.add_argument('--configfile', action='store')
+ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Coding/PYTHON/cocrawler/tests/test-brc.yml')
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
@@ -87,7 +87,7 @@ def main():
         kwargs['load'] = args.load
     if args.no_test:
         kwargs['no_test'] = True
-
+        
     crawler = cocrawler.Crawler(**kwargs)
     loop = asyncio.get_event_loop()
     slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')

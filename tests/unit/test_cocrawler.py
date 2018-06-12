@@ -69,26 +69,23 @@ def misc():
 
     crawler.add_url(0, {'url': URL('http://tut.by/')})
     crawler.add_url(0, {'url': URL('http://habr.com/')})
+    crawler.crawl()
 
-    assert crawler.qsize == 3
+    crawler.summarize()
 
-    f = tempfile.NamedTemporaryFile(delete=False)
-    name = f.name
 
-    with open(name, 'wb') as f:
-        crawler.save(f)
-    assert crawler.qsize == 0
+def misc2():
+    import psutil
+    p = psutil.Process()
+    from multiprocessing import cpu_count
 
-    crawler.add_url(0, {'url': URL('http://example4.com/')})
-    assert crawler.qsize == 1
-
-    with open(name, 'rb') as f:
-        crawler.load(f)
-
-    assert crawler.qsize == 3
-
-    os.unlink(name)
-    assert not os.path.exists(name)
+    p = psutil.Process(os.getpid())
+    try:
+        p.set_cpu_affinity(list(range(cpu_count())))
+    except:
+        pass
 
 if __name__ == '__main__':
-    misc()
+    #misc()
+    #misc2()
+    pass

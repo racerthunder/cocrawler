@@ -4,6 +4,7 @@ import asyncio
 from concurrent.futures import ProcessPoolExecutor
 import functools
 import traceback
+import multiprocessing
 
 import psutil
 
@@ -71,9 +72,15 @@ class Burner:
                 # I can't await f because I'm not async, and the StackOverflow
                 # answers I see regarding this issue in __init__ look ugly
         else:
-            if thread_count > len(p.cpu_affinity()):
+            try:
+                self.cpu_count = p.cpu_affinity()
+
+            except :
+                self.cpu_count = multiprocessing.cpu_count()
+
+            if thread_count > self.cpu_count:
                 LOGGER.warning('fewer cpus (%d) than burner threads (%d), performance will suffer',
-                               len(p.cpu_affinity()), thread_count)
+                               self.cpu_count, thread_count)
 
     async def burn(self, partial, url=None):
         '''

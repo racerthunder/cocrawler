@@ -1,0 +1,36 @@
+Crawl:
+  MaxCrawledUrls: 50 # prevent a runaway
+  UserAgent: cocrawler-test/0.01
+  PageTimeout: 5
+  RetryTimeout: 0.1
+
+Plugins:
+  url_allowed: OnlySeeds
+
+Seeds:
+  Hosts:
+  - http://tut.by
+  #Files:
+  #- test-wide.hosts
+
+Logging:
+  Crawllog: crawllog.jsonl
+  Robotslog: robotslog.jsonl
+  Facetlog: facetlog.jsonl
+  RejectedAddUrllog: rejectedaddurl.log
+
+UserAgent:
+  Style: crawler
+  MyPrefix: test-wide
+  URL: http://example.com/cocrawler.html
+
+Testing:
+  TestHostmapAll: 127.0.0.1:8080
+  StatsEQ:
+    fetch http code=200: 11
+    fetch http code=303: 1
+    max urls found on a page: 3
+    rejected by seen_urls: 2
+    robots denied: 4
+  StatsGE:
+    fetch http code=503: 1
