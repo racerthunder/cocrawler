@@ -36,6 +36,8 @@ ARGS.add_argument('--load', action='store')
 
 def limit_resources():
     _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if sys.platform=='darwin':
+        hard = 8
     # XXX warn if too few compared to max_wokers?
     resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
@@ -65,6 +67,7 @@ def main():
     logging.basicConfig(level=loglevel)
 
     config.config(args.configfile, args.config, confighome=not args.no_confighome)
+
     limit_resources()
 
     if os.getenv('PYTHONASYNCIODEBUG') is not None:

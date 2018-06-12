@@ -22,9 +22,8 @@ def test_cocrawler(capsys):
 
     crawler = cocrawler.Crawler()
 
-    crawler.add_url(0, {'url': URL('http://example1.com/')})
-    crawler.add_url(0, {'url': URL('http://example2.com/')})
-    crawler.add_url(0, {'url': URL('http://example3.com/')})
+    crawler.add_url(0, {'url': URL('http://tut.by/')})
+    crawler.add_url(0, {'url': URL('http://habr.com/')})
 
     assert crawler.qsize == 3
 
