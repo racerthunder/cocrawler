@@ -12,8 +12,8 @@ Seeds:
   - http://host1.com/ordinary/0
   - http://host2.com/ordinary/3
   - http://503.host99.com/ordinary/0 # good robots, eternal 503s on content
-  Files:
-  - test-wide.hosts
+  #Files:
+  #- test-wide.hosts
 
 Logging:
   Crawllog: crawllog.jsonl
