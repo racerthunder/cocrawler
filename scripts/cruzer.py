@@ -31,7 +31,7 @@ ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Codin
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--loglevel', action='store', default='INFO')
+ARGS.add_argument('--loglevel', action='store', default='DEBUG')
 ARGS.add_argument('--load', action='store')
 
 
@@ -52,6 +52,40 @@ def limit_resources():
         LOGGER.error('RLIMIT_AS limited to %d bytes by system limit', hard)
         rlimit_as = hard
     resource.setrlimit(resource.RLIMIT_AS, (rlimit_as, hard))
+
+class Task(object):
+    def __init__(self,name,url=None,**kwargs):
+        assert url is not None
+        self.url = URL(url)
+        self.name = name
+
+        if kwargs:
+            for k,v in kwargs.items():
+                setattr(self,k,v)
+
+
+def dispatcher():
+    urls = ['http://tut.by','http://mail.ru','http://habr.com']
+
+    for url in urls:
+        yield url
+        #break
+
+class Cruzer(cocrawler.Crawler):
+
+    def task_generator(self):
+        for url in dispatcher():
+            yield Task(name='download',url=url,id=1)
+
+    def task_download(self,task,fr,):
+        print('--> calling function download, task id = {0}'.format(task.id))
+        yield Task(name='second',url='http://google.com',id=2)
+
+    def task_second(self,task,fr):
+        print('--> calling task_second, task id = {0}'.format(task.id))
+        #print(fr.response)
+
+
 
 
 def main():
@@ -90,10 +124,7 @@ def main():
     if args.no_test:
         kwargs['no_test'] = True
 
-    crawler = cocrawler.Crawler(**kwargs)
-
-    crawler.add_url(0, {'url': URL('http://tut.by/')})
-    crawler.add_url(0, {'url': URL('http://habr.com/')})
+    cruzer = Cruzer(**kwargs)
 
     loop = asyncio.get_event_loop()
     slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
@@ -110,14 +141,14 @@ def main():
         app = None
 
     try:
-        loop.run_until_complete(crawler.crawl())
+        loop.run_until_complete(cruzer.crawl())
     except KeyboardInterrupt:
         sys.stderr.flush()
         print('\nInterrupt. Exiting cleanly.\n')
         stats.coroutine_report()
-        crawler.cancel_workers()
+        cruzer.cancel_workers()
     finally:
-        loop.run_until_complete(crawler.close())
+        loop.run_until_complete(cruzer.close())
         if app:
             webserver.close(app)
         if config.read('CarbonStats'):

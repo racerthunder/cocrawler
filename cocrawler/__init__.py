@@ -142,9 +142,15 @@ class Crawler:
             LOGGER.info('at time of loading, stats are')
             stats.report()
         else:
-            self._seeds = seeds.expand_seeds_config(self)
-            LOGGER.info('after adding seeds, work queue is %r urls', self.scheduler.qsize())
-            stats.stats_max('initial seeds', self.scheduler.qsize())
+            if self.mode != 'cruzer':
+                self._seeds = seeds.expand_seeds_config(self)
+                LOGGER.info('after adding seeds, work queue is %r urls', self.scheduler.qsize())
+                stats.stats_max('initial seeds', self.scheduler.qsize())
+
+            else:
+                self.load_initial()
+                LOGGER.info('--> after adding initial urls, work queue is %r urls', self.scheduler.qsize())
+                stats.stats_max('--> initial urls', self.scheduler.qsize())
 
         self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{}'.format(os.getpid()))
         self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{}'.format(os.getpid()))
@@ -302,6 +308,7 @@ class Crawler:
                     geoip.lookup_all(addrs, host_geoip)
                 post_fetch.post_dns(addrs, expires, url, self)
 
+        # ---> brc, skip section <---
         if not self.mode == 'cruzer':
             r = await self.robots.check(url, host_geoip, seed_host, self,
                                         headers=req_headers, proxy=proxy, mock_robots=mock_robots)
@@ -310,7 +317,7 @@ class Crawler:
                 # but we do want to retry robots.txt failed to fetch
                 self._retry_if_able(work, ridealong)
                 return
-
+        # ---> end skip section <--
         f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
                                 headers=req_headers, proxy=proxy, mock_url=mock_url)
 
@@ -335,8 +342,13 @@ class Crawler:
             post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
 
-        if f.response.status == 200:
-            await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
+        else:
+            # all redirects already happend, get to callback function
+            self.load_task_function(ridealong,f)
+
+        # if f.response.status == 200:
+        #     await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
+        #
 
         LOGGER.debug('size of work queue now stands at %r urls', self.scheduler.qsize())
         LOGGER.debug('size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
@@ -346,6 +358,23 @@ class Crawler:
 
         if self.crawllogfd:
             print(json.dumps(json_log, sort_keys=True), file=self.crawllogfd)
+
+    def load_task_function(self,ridealong,fr):
+        task_name = 'task_{0}'.format(ridealong['task'].name)
+        task_func = getattr(self,task_name,None)
+
+        if task_func is None:
+            raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
+
+        task_generator = task_func(ridealong['task'],fr)
+
+        try:
+            task = next(task_generator)
+            ride_along = self.get_ridealong(task)
+            self.add_url(0,ride_along)
+        except (StopIteration,TypeError):
+            # TypeError is raised when task returns nothing
+            LOGGER.debug('--> No task left in: {0}'.format(task_name))
 
     async def work(self):
         '''
@@ -476,10 +505,24 @@ class Crawler:
         elapsedc = time.clock()  # should be since process start
         stats.stats_set('main thread cpu time', elapsedc)
 
+    def get_ridealong(self,task):
+        #overwrite this method to customoze ridealong
+        ride_along = {'url': task.url,'task':task,'skip_seen_url':True}
+        return ride_along
+
+    def task_generator(self):
+        yield ':)'
+
+    def load_initial(self):
+        for task in self.task_generator():
+            ride_along = self.get_ridealong(task)
+            self.add_url(0,ride_along)
+
     async def crawl(self):
         '''
         Run the crawler until it's out of work
         '''
+
         self.control_limit_worker = asyncio.Task(self.control_limit())
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
 
