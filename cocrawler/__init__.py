@@ -60,6 +60,7 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 
 class Crawler:
     def __init__(self, load=None, no_test=False, paused=False):
+        self.mode = 'cruzer'
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
         self.burner = burner.Burner('parser')
