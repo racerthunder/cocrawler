@@ -14,10 +14,10 @@ Plugins:
   #- test-wide.hosts
 
 Logging:
-  Crawllog: crawllog.jsonl
-  Robotslog: robotslog.jsonl
-  Facetlog: facetlog.jsonl
-  RejectedAddUrllog: rejectedaddurl.log
+  Crawllog: ../log/crawllog.jsonl
+  Robotslog: ../log/robotslog.jsonl
+  Facetlog: ../log/facetlog.jsonl
+  RejectedAddUrllog: ../log/rejectedaddurl.log
 
 UserAgent:
   Style: crawler

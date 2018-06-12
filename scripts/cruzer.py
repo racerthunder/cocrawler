@@ -40,7 +40,7 @@ def limit_resources():
     # XXX warn if too few compared to max_wokers?
     if sys.platform=='darwin':
         hard = 10240
-        
+
     resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
     _, hard = resource.getrlimit(resource.RLIMIT_AS)  # RLIMIT_VMEM does not exist?!
