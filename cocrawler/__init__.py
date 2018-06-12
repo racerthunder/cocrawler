@@ -183,21 +183,23 @@ class Crawler:
         # and ...
 
         url = ridealong['url']
-        if 'seed' in ridealong:
-            seeds.seed_from_redir(url)
+        
+        if self.mode != 'cruzer':
+            if 'seed' in ridealong:
+                seeds.seed_from_redir(url)
 
-        # XXX allow/deny plugin modules go here
-        if priority > int(config.read('Crawl', 'MaxDepth')):
-            stats.stats_sum('rejected by MaxDepth', 1)
-            self.log_rejected_add_url(url)
-            return
-        if 'skip_seen_url' not in ridealong:
-            if self.datalayer.seen_url(url):
-                stats.stats_sum('rejected by seen_urls', 1)
+            # XXX allow/deny plugin modules go here
+            if priority > int(config.read('Crawl', 'MaxDepth')):
+                stats.stats_sum('rejected by MaxDepth', 1)
                 self.log_rejected_add_url(url)
                 return
-        else:
-            del ridealong['skip_seen_url']
+            if 'skip_seen_url' not in ridealong:
+                if self.datalayer.seen_url(url):
+                    stats.stats_sum('rejected by seen_urls', 1)
+                    self.log_rejected_add_url(url)
+                    return
+            else:
+                del ridealong['skip_seen_url']
 
         allowed = url_allowed.url_allowed(url)
         if not allowed:
