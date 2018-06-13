@@ -68,7 +68,9 @@ def dispatcher():
     urls = ['http://tut.by','http://mail.ru','http://habr.com']
 
     for url in urls:
-        yield url
+
+        for i in range(100):
+            yield '{0}?i={1}'.format(url,i)
         #break
 
 class Cruzer(cocrawler.Crawler):

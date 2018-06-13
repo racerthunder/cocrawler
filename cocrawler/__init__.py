@@ -61,7 +61,7 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 class Crawler:
     def __init__(self, load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
-        self.test_mode = False # if True the first response from fetcher is cached and returned for all
+        self.test_mode = True # if True the first response from fetcher is cached and returned for all
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -386,7 +386,7 @@ class Crawler:
         # ---> end skip section <--
 
         if self.test_mode:
-            if not getattr(self,'test_first_response'):
+            if getattr(self,'test_first_response',None) is None:
                 f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
                                         headers=req_headers, proxy=proxy, mock_url=mock_url)
 
@@ -416,7 +416,7 @@ class Crawler:
 
         json_log['status'] = f.response.status
 
-        if post_fetch.is_redirect(f.response):
+        if not self.test_mode and post_fetch.is_redirect(f.response):
             post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
 

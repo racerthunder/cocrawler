@@ -26,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 class Scheduler:
     def __init__(self,max_workers):
         self.max_workers=max_workers
-        self.q = asyncio.PriorityQueue(maxsize=self.max_workers*50)
+        self.q = asyncio.PriorityQueue(maxsize=self.max_workers)
         self.ridealong = {}
         self.awaiting_work = 0
         self.maxhostqps = None
