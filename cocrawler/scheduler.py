@@ -123,7 +123,10 @@ class Scheduler:
         '''
         self.q.put_nowait(work)
 
-    async def queue_work(self, work):
+    def queue_work(self, work):
+        self.q.put_nowait(work)
+
+    async def queue_work_async(self, work):
         await self.q.put(work)
 
     def qsize(self):
