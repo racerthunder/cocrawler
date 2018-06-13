@@ -61,7 +61,7 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 class Crawler:
     def __init__(self, load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
-        self.test_mode = True # if True the first response from fetcher is cached and returned for all
+        self.test_mode = False # if True the first response from fetcher is cached and returned for all
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -305,9 +305,9 @@ class Crawler:
         for w in self.workers:
             if not w.done():
                 w.cancel()
-        cw = self.control_limit_worker
-        if cw and not cw.done():
-            cw.cancel()
+        # cw = self.control_limit_worker
+        # if cw and not cw.done():
+        #     cw.cancel()
 
     async def close(self):
         stats.report()
@@ -385,18 +385,8 @@ class Crawler:
                 return
         # ---> end skip section <--
 
-        if self.test_mode:
-            if getattr(self,'test_first_response',None) is None:
-                f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
-                                        headers=req_headers, proxy=proxy, mock_url=mock_url)
 
-                self.test_first_response = f
-
-            else:
-                f = self.test_first_response
-
-        else:
-            f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
+        f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
 
         json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
@@ -416,7 +406,7 @@ class Crawler:
 
         json_log['status'] = f.response.status
 
-        if not self.test_mode and post_fetch.is_redirect(f.response):
+        if post_fetch.is_redirect(f.response):
             post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
 
@@ -618,7 +608,8 @@ class Crawler:
         Run the crawler until it's out of work
         '''
 
-        self.control_limit_worker = asyncio.Task(self.control_limit())
+        #self.control_limit_worker = asyncio.Task(self.control_limit())
+        self.connector._limit = 10000 # used in above async task
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
 
         # this is now the 'main' coroutine

@@ -65,12 +65,12 @@ class Task(object):
 
 
 def dispatcher():
-    urls = ['http://tut.by','http://mail.ru','http://habr.com']
+    import pathlib
+    #urls = ['http://tut.by','http://mail.ru','http://habr.com']
+    urls = [line.strip() for line in pathlib.Path('/Volumes/crypt/_Coding/PYTHON/cocrawler/data/top-1k.txt').open()]
 
     for url in urls:
-
-        for i in range(100):
-            yield '{0}?i={1}'.format(url,i)
+        yield url
         #break
 
 class Cruzer(cocrawler.Crawler):
@@ -81,11 +81,7 @@ class Cruzer(cocrawler.Crawler):
 
     def task_download(self,task,fr,):
         print('--> calling function download, task id = {0}, url={1}'.format(task.id,fr.response.url))
-        yield Task(name='second',url='http://google.com?ref={0}'.format(fr.response.url),id=2)
 
-    def task_second(self,task,fr):
-        print('--> calling task_second, task id = {0}, url={1}'.format(task.id,fr.response.url))
-        #print(fr.response)
 
 
 
