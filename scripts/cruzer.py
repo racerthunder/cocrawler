@@ -78,11 +78,11 @@ class Cruzer(cocrawler.Crawler):
             yield Task(name='download',url=url,id=1)
 
     def task_download(self,task,fr,):
-        print('--> calling function download, task id = {0}'.format(task.id))
+        print('--> calling function download, task id = {0}, url={1}'.format(task.id,fr.url))
         yield Task(name='second',url='http://google.com',id=2)
 
     def task_second(self,task,fr):
-        print('--> calling task_second, task id = {0}'.format(task.id))
+        print('--> calling task_second, task id = {0}, url={1}'.format(task.id,fr.url))
         #print(fr.response)
 
 

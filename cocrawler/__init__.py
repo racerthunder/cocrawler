@@ -61,6 +61,8 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 class Crawler:
     def __init__(self, load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
+        self.test_mode = True # if True the first response from fetcher is cached and returned for all
+        # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
         self.burner = burner.Burner('parser')
@@ -320,8 +322,20 @@ class Crawler:
                 self._retry_if_able(work, ridealong)
                 return
         # ---> end skip section <--
-        f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
-                                headers=req_headers, proxy=proxy, mock_url=mock_url)
+
+        if self.test_mode:
+            if not getattr(self,'test_first_response'):
+                f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
+                                        headers=req_headers, proxy=proxy, mock_url=mock_url)
+
+                self.test_first_response = f
+
+            else:
+                f = self.test_first_response
+
+        else:
+            f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
+                                    headers=req_headers, proxy=proxy, mock_url=mock_url)
 
         json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
                     't_first_byte': f.t_first_byte, 'time': time.time()}
