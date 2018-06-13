@@ -68,11 +68,11 @@ class Crawler:
         self.paused = paused
         self.no_test = no_test
         self.next_minute = time.time() + 60
-        self.scheduler = scheduler.Scheduler()
         self.max_page_size = int(config.read('Crawl', 'MaxPageSize'))
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
         self.max_workers = int(config.read('Crawl', 'MaxWorkers'))
+        self.scheduler = scheduler.Scheduler(self.max_workers)
         self.workers = []
 
         try:
