@@ -61,7 +61,7 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 class Crawler:
     def __init__(self, load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
-        self.test_mode = True # if True the first response from fetcher is cached and returned for all
+        self.test_mode = False # if True the first response from fetcher is cached and returned for all
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -76,6 +76,8 @@ class Crawler:
         self.max_workers = int(config.read('Crawl', 'MaxWorkers'))
         self.scheduler = scheduler.Scheduler(self.max_workers)
         self.workers = []
+        self.init_generator = self.task_generator()
+        self.init_urls_loaded = False # set to True once all urls from init list are consumed
 
         try:
             # this works for the installed package
@@ -149,11 +151,6 @@ class Crawler:
                 LOGGER.info('after adding seeds, work queue is %r urls', self.scheduler.qsize())
                 stats.stats_max('initial seeds', self.scheduler.qsize())
 
-            else:
-                self.load_initial()
-                LOGGER.info('--> after adding initial urls, work queue is %r urls', self.scheduler.qsize())
-                stats.stats_max('--> initial urls', self.scheduler.qsize())
-
         self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{}'.format(os.getpid()))
         self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{}'.format(os.getpid()))
 
@@ -174,6 +171,71 @@ class Crawler:
     def log_rejected_add_url(self, url):
         if self.rejectedaddurlfd:
             print(url.url, file=self.rejectedaddurlfd)
+
+    async def add_url_async(self, priority, ridealong):
+        # XXX eventually do something with the frag - record as a "javascript-needed" clue
+
+        # XXX optionally generate additional urls plugin here
+        # e.g. any amazon url with an AmazonID should add_url() the base product page
+        # and a non-homepage should add the homepage
+        # and a homepage add should add soft404 detection
+        # and ...
+
+        url = ridealong['url']
+
+        if self.mode != 'cruzer':
+            if 'seed' in ridealong:
+                seeds.seed_from_redir(url)
+
+            # XXX allow/deny plugin modules go here
+            if priority > int(config.read('Crawl', 'MaxDepth')):
+                stats.stats_sum('rejected by MaxDepth', 1)
+                self.log_rejected_add_url(url)
+                return
+            if 'skip_seen_url' not in ridealong:
+                if self.datalayer.seen_url(url):
+                    stats.stats_sum('rejected by seen_urls', 1)
+                    self.log_rejected_add_url(url)
+                    return
+            else:
+                del ridealong['skip_seen_url']
+
+        allowed = url_allowed.url_allowed(url)
+        if not allowed:
+            LOGGER.debug('url %s was rejected by url_allow.', url.url)
+            stats.stats_sum('rejected by url_allowed', 1)
+            self.log_rejected_add_url(url)
+            return
+        if allowed.url != url.url:
+            LOGGER.debug('url %s was modified to %s by url_allow.', url.url, allowed.url)
+            stats.stats_sum('modified by url_allowed', 1)
+            url = allowed
+            ridealong['url'] = url
+            if self.datalayer.seen_url(url):
+                stats.stats_sum('rejected by seen_urls', 1)
+                self.log_rejected_add_url(url)
+                return
+
+        # end allow/deny plugin
+
+        LOGGER.debug('actually adding url %s, surt %s', url.url, url.surt)
+        stats.stats_sum('added urls', 1)
+
+        ridealong['priority'] = priority
+
+        # to randomize fetches, and sub-prioritize embeds
+        if ridealong.get('embed'):
+            rand = 0.0
+        else:
+            rand = random.uniform(0, 0.99999)
+
+        self.scheduler.set_ridealong(url.surt, ridealong)
+
+        await self.scheduler.queue_work_async((priority, rand, url.surt))
+
+        self.datalayer.add_seen_url(url)
+        return 1
+
 
     def add_url(self, priority, ridealong):
         # XXX eventually do something with the frag - record as a "javascript-needed" clue
@@ -360,7 +422,9 @@ class Crawler:
 
         else:
             # all redirects already happend, get to callback function
-            self.load_task_function(ridealong,f)
+            await self.load_task_function(ridealong,f)
+
+
 
         # if f.response.status == 200:
         #     await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
@@ -375,7 +439,7 @@ class Crawler:
         if self.crawllogfd:
             print(json.dumps(json_log, sort_keys=True), file=self.crawllogfd)
 
-    def load_task_function(self,ridealong,fr):
+    async def load_task_function(self,ridealong,fr):
         task_name = 'task_{0}'.format(ridealong['task'].name)
         task_func = getattr(self,task_name,None)
 
@@ -387,17 +451,24 @@ class Crawler:
         try:
             task = next(task_generator)
             ride_along = self.get_ridealong(task)
-            self.add_url(1,ride_along)
+            await self.add_url_async(1,ride_along)
         except (StopIteration,TypeError):
             # TypeError is raised when task returns nothing
             LOGGER.debug('--> No task left in: {0}'.format(task_name))
+            return None
 
     async def work(self):
         '''
         Process queue items until we run out.
         '''
+
         try:
             while True:
+                if not self.init_urls_loaded:
+                    next_task_init = self.get_next_task_init()
+                    if not next_task_init is None:
+                        await self.add_url_async(1,next_task_init)
+
                 work = await self.scheduler.get_work()
 
                 try:
@@ -529,10 +600,18 @@ class Crawler:
     def task_generator(self):
         yield ':)'
 
-    def load_initial(self):
-        for task in self.task_generator():
+    def get_next_task_init(self):
+        '''
+        :return: ridealong
+        '''
+        try:
+            task = next(self.init_generator)
             ride_along = self.get_ridealong(task)
-            self.add_url(1,ride_along)
+            return ride_along
+
+        except StopIteration:
+            LOGGER.debug('--> All initial urls consumed')
+            self.init_urls_loaded = True
 
     async def crawl(self):
         '''
