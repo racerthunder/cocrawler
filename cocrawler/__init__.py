@@ -423,7 +423,7 @@ class Crawler:
                     await self.loop.run_in_executor(None,partial)
 
                 except ValueError as e:  # if it pukes, ..
-                    stats.stats_sum('--> parser raised while cruzer callback ', 1)
+                    stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
                     LOGGER.info('parser raised %r', e)
 
         # if f.response.status == 200:
@@ -432,6 +432,8 @@ class Crawler:
 
         LOGGER.debug('size of work queue now stands at %r urls', self.scheduler.qsize())
         LOGGER.debug('size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
+        LOGGER.debug('--> size of deffered queue now stands at %r urls', self.deffered_queue.qsize())
+
         stats.stats_set('queue size', self.scheduler.qsize())
         stats.stats_max('max queue size', self.scheduler.qsize())
         stats.stats_set('ridealong size', self.scheduler.ridealong_size())
@@ -448,13 +450,15 @@ class Crawler:
 
         task_generator = task_func(ridealong['task'],fr)
 
-        try:
-            task = next(task_generator)
-            ride_along = self.get_ridealong(task)
-            self.add_deffered_task(0,ride_along)
-        except (StopIteration,TypeError):
-            # TypeError is raised when task returns nothing
-            LOGGER.debug('--> No task left in: {0}'.format(task_name))
+        while True:
+            try:
+                task = next(task_generator)
+                ride_along = self.get_ridealong(task)
+                self.add_deffered_task(0,ride_along)
+            except (StopIteration,TypeError):
+                # TypeError is raised when task returns nothing
+                LOGGER.debug('--> No task left in: {0}'.format(task_name))
+                break
 
 
     async def work(self):
@@ -466,10 +470,9 @@ class Crawler:
             while True:
 
                 work = await self.scheduler.get_work()
-                #LOGGER.debug('--> got work: {0}'.format(work))
 
                 try:
-                    #await asyncio.sleep(1)
+
                     await self.fetch_and_process(work)
                 except concurrent.futures._base.CancelledError:  # seen with ^C
                     pass
@@ -479,7 +482,7 @@ class Crawler:
                     LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
                     traceback.print_exc()
                     # falling through causes this work item to get marked done, and we continue
-                #LOGGER.debug('--> work complete: {0}'.format(work))
+
                 self.scheduler.work_done()
 
                 if self.stopping:
