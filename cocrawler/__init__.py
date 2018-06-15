@@ -616,8 +616,9 @@ class Crawler:
 
         while True:
             # deffered queue has priority over initail urls, that why we also include it here
-            # if not self.deffered_queue.empty():
-            #     await asyncio.sleep(0.1)
+            # do not try to get items from this queue here since it could be racy with main coroutine
+            if not self.deffered_queue.empty():
+                await asyncio.sleep(0.1)
             try:
                 task = next(self.init_generator)
             except StopIteration:

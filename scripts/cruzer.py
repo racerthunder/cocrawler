@@ -32,7 +32,7 @@ ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Codin
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--loglevel', action='store', default='DEBUG')
+ARGS.add_argument('--loglevel', action='store', default='INFO')
 ARGS.add_argument('--load', action='store')
 
 
@@ -80,7 +80,6 @@ class Cruzer(cocrawler.Crawler):
         for url in dispatcher():
             counter +=1
             yield Task(name='download',url=url,counter=counter)
-            print('--> cruzer counter: {0}'.format(counter))
 
     def task_download(self,task,fr,):
         print('--> calling function download, counter = {0}, url={1}'.format(task.counter,fr.response.url))
