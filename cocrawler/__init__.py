@@ -451,11 +451,11 @@ class Crawler:
         try:
             task = next(task_generator)
             ride_along = self.get_ridealong(task)
-            self.add_url_async(0,ride_along)
+            self.add_deffered_task(0,ride_along)
         except (StopIteration,TypeError):
             # TypeError is raised when task returns nothing
-            #LOGGER.debug('--> No task left in: {0}'.format(task_name))
-            return None
+            LOGGER.debug('--> No task left in: {0}'.format(task_name))
+
 
     async def work(self):
         '''
@@ -599,6 +599,7 @@ class Crawler:
         yield ':)'
 
     def add_deffered_task(self,priority, ridealong):
+        # add urls from redirects detection and from cruzer callback functions
         self.deffered_queue.put_nowait((priority,ridealong))
 
     async def deffered_queue_processor(self):
@@ -667,9 +668,6 @@ class Crawler:
 
             self.workers = [w for w in self.workers if not w.done()]
             LOGGER.debug('%d workers remain', len(self.workers))
-
-            LOGGER.debug('--> size of work queue now stands at %r urls', self.scheduler.qsize())
-            LOGGER.debug('--> size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
 
             if len(self.workers) == 0:
                 # this triggers if we've exhausted our url budget and all workers cancel themselves
