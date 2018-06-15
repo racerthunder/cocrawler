@@ -21,6 +21,7 @@ import cocrawler.timer as timer
 import cocrawler.webserver as webserver
 from cocrawler.urls import URL
 
+
 LOGGER = logging.getLogger(__name__)
 
 faulthandler.enable()
@@ -68,23 +69,26 @@ def dispatcher():
     import pathlib
     #urls = ['http://tut.by','http://mail.ru','http://habr.com']
     urls = [line.strip() for line in pathlib.Path('/Volumes/crypt/_Coding/PYTHON/cocrawler/data/top-1k.txt').open()]
-
     for url in urls:
-        yield url
+        yield 'http://{0}'.format(url)
         #break
 
 class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
+        counter = 0
         for url in dispatcher():
-            yield Task(name='download',url=url,id=1)
+            counter +=1
+            yield Task(name='download',url=url,counter=counter)
+            print('--> cruzer counter: {0}'.format(counter))
 
     def task_download(self,task,fr,):
-        print('--> calling function download, task id = {0}, url={1}'.format(task.id,fr.response.url))
+        print('--> calling function download, counter = {0}, url={1}'.format(task.counter,fr.response.url))
+        yield Task(name='second',url='http://google.com?id={0}'.format(task.counter),counter=task.counter)
 
 
-
-
+    def task_second(self,task,fr):
+        print('--> calling second download, counter = {0}, url={1}'.format(task.counter,fr.response.url))
 
 def main():
     '''
@@ -125,6 +129,9 @@ def main():
     cruzer = Cruzer(**kwargs)
 
     loop = asyncio.get_event_loop()
+
+    #fut = asyncio.Task(cruzer.queue_producer())
+    #print(fut)
     slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
     if slow_callback_duration:
         loop.slow_callback_duration = float(slow_callback_duration)

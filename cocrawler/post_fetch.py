@@ -141,7 +141,7 @@ the url shortener to go out of business.
 '''
 
 
-def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, crawler, seed_host=None):
+async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, crawler, seed_host=None):
     resp_headers = f.response.headers
 
     location = resp_headers.get('location')
@@ -202,7 +202,9 @@ def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, crawler, 
     ridealong['priority'] = priority
 
     if queue_next:
-        crawler.add_url(priority, ridealong)
+        crawler.add_deffered_task(0,ridealong)
+        #await crawler.add_url_async(priority, ridealong)
+
 
     json_log['redirect'] = next_url.url
     json_log['location'] = location

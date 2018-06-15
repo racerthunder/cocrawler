@@ -11,6 +11,7 @@ from setuptools_scm import get_version
 import json
 import traceback
 import concurrent
+import functools
 
 import asyncio
 import uvloop
@@ -78,6 +79,7 @@ class Crawler:
         self.workers = []
         self.init_generator = self.task_generator()
         self.init_urls_loaded = False # set to True once all urls from init list are consumed
+        self.deffered_queue = asyncio.Queue()
 
         try:
             # this works for the installed package
@@ -325,6 +327,7 @@ class Crawler:
         await self.session.close()
 
     def _retry_if_able(self, work, ridealong):
+        LOGGER.debug('--> retrying work: {0}'.format(work))
         priority, rand, surt = work
         retries_left = ridealong.get('retries_left', 0) - 1
         if retries_left <= 0:
@@ -389,6 +392,7 @@ class Crawler:
         f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
 
+
         json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
                     't_first_byte': f.t_first_byte, 'time': time.time()}
         if seed_host:
@@ -407,14 +411,20 @@ class Crawler:
         json_log['status'] = f.response.status
 
         if post_fetch.is_redirect(f.response):
-            post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
+            await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
 
         else:
+
             # all redirects already happend, get to callback function
-            await self.load_task_function(ridealong,f)
+            partial = functools.partial(self.load_task_function, ridealong, f)
+            with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
+                try:
+                    await self.loop.run_in_executor(None,partial)
 
-
+                except ValueError as e:  # if it pukes, ..
+                    stats.stats_sum('--> parser raised while cruzer callback ', 1)
+                    LOGGER.info('parser raised %r', e)
 
         # if f.response.status == 200:
         #     await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
@@ -429,7 +439,7 @@ class Crawler:
         if self.crawllogfd:
             print(json.dumps(json_log, sort_keys=True), file=self.crawllogfd)
 
-    async def load_task_function(self,ridealong,fr):
+    def load_task_function(self,ridealong,fr):
         task_name = 'task_{0}'.format(ridealong['task'].name)
         task_func = getattr(self,task_name,None)
 
@@ -441,10 +451,10 @@ class Crawler:
         try:
             task = next(task_generator)
             ride_along = self.get_ridealong(task)
-            await self.add_url_async(1,ride_along)
+            self.add_url_async(0,ride_along)
         except (StopIteration,TypeError):
             # TypeError is raised when task returns nothing
-            LOGGER.debug('--> No task left in: {0}'.format(task_name))
+            #LOGGER.debug('--> No task left in: {0}'.format(task_name))
             return None
 
     async def work(self):
@@ -454,14 +464,12 @@ class Crawler:
 
         try:
             while True:
-                if not self.init_urls_loaded:
-                    next_task_init = self.get_next_task_init()
-                    if not next_task_init is None:
-                        await self.add_url_async(1,next_task_init)
 
                 work = await self.scheduler.get_work()
+                #LOGGER.debug('--> got work: {0}'.format(work))
 
                 try:
+                    #await asyncio.sleep(1)
                     await self.fetch_and_process(work)
                 except concurrent.futures._base.CancelledError:  # seen with ^C
                     pass
@@ -471,7 +479,7 @@ class Crawler:
                     LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
                     traceback.print_exc()
                     # falling through causes this work item to get marked done, and we continue
-
+                #LOGGER.debug('--> work complete: {0}'.format(work))
                 self.scheduler.work_done()
 
                 if self.stopping:
@@ -590,28 +598,52 @@ class Crawler:
     def task_generator(self):
         yield ':)'
 
-    def get_next_task_init(self):
-        '''
-        :return: ridealong
-        '''
-        try:
-            task = next(self.init_generator)
-            ride_along = self.get_ridealong(task)
-            return ride_along
+    def add_deffered_task(self,priority, ridealong):
+        self.deffered_queue.put_nowait((priority,ridealong))
 
-        except StopIteration:
-            LOGGER.debug('--> All initial urls consumed')
-            self.init_urls_loaded = True
+    async def deffered_queue_processor(self):
+        while True:
+            try:
+                priority, ridealong = self.deffered_queue.get_nowait()
+                await self.add_url_async(priority,ridealong)
+                LOGGER.debug('--> deffered task added: {0}'.format(ridealong['url'].hostname))
+            except asyncio.queues.QueueEmpty:
+                LOGGER.debug('--> deffered queue is empty')
+                await asyncio.sleep(0.1)
+
+    async def queue_producer(self):
+
+        while True:
+            # deffered queue has priority over initail urls, that why we also include it here
+            # if not self.deffered_queue.empty():
+            #     await asyncio.sleep(0.1)
+            try:
+                task = next(self.init_generator)
+            except StopIteration:
+                LOGGER.debug('--> cruzer iter is empty')
+                break
+
+            ride_along = self.get_ridealong(task)
+            # this link will be blocked if no space left in queue
+            try:
+                self.add_url(1,ride_along)
+                await asyncio.sleep(0.1)
+            except asyncio.queues.QueueFull:
+                await self.add_url_async(1,ride_along)
+
+
+
 
     async def crawl(self):
         '''
         Run the crawler until it's out of work
         '''
+        self.producer = asyncio.Task(self.queue_producer())
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
         self.connector._limit = 10000 # used in above async task
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
-
+        self.deffered_queue_checker = asyncio.Task(self.deffered_queue_processor())
         # this is now the 'main' coroutine
 
         if config.read('Multiprocess', 'Affinity'):
@@ -635,6 +667,10 @@ class Crawler:
 
             self.workers = [w for w in self.workers if not w.done()]
             LOGGER.debug('%d workers remain', len(self.workers))
+
+            LOGGER.debug('--> size of work queue now stands at %r urls', self.scheduler.qsize())
+            LOGGER.debug('--> size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
+
             if len(self.workers) == 0:
                 # this triggers if we've exhausted our url budget and all workers cancel themselves
                 # queue will likely not be empty in this case
@@ -652,6 +688,8 @@ class Crawler:
             self.minute()
 
         self.cancel_workers()
+        self.producer.cancel()
+        self.deffered_queue_checker.cancel()
 
         if self.stopping or config.read('Save', 'SaveAtExit'):
             self.summarize()

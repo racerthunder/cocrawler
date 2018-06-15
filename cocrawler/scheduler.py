@@ -26,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 class Scheduler:
     def __init__(self,max_workers):
         self.max_workers=max_workers
-        self.q = asyncio.PriorityQueue(maxsize=self.max_workers)
+        self.q = asyncio.PriorityQueue(maxsize=self.max_workers*20)
         self.ridealong = {}
         self.awaiting_work = 0
         self.maxhostqps = None
@@ -49,6 +49,7 @@ class Scheduler:
                 # using awaiting_work to see if all workers are idle can race with sleeping s.q.get()
                 # putting it in an except clause makes sure the race is only run when
                 # the queue is actually empty.
+                LOGGER.debug('--> scheduler is empty')
                 self.awaiting_work += 1
                 with stats.coroutine_state('awaiting work'):
                     work = await self.q.get()
@@ -81,6 +82,7 @@ class Scheduler:
             if dt > 0:
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
+                    LOGGER.debug('--> scheduler is sleeping')
                     await asyncio.sleep(dt)
 
             return work

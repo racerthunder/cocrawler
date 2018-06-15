@@ -1,7 +1,8 @@
 Crawl:
-  MaxCrawledUrls: 50 # prevent a runaway
+  MaxCrawledUrls: 500 # prevent a runaway
   UserAgent: cocrawler-test/0.01
-  PageTimeout: 5
+  MaxWorkers: 2
+  PageTimeout: 1
   RetryTimeout: 0.1
 
 Plugins:

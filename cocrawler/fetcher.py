@@ -69,6 +69,10 @@ async def fetch(url, session, headers=None, proxy=None, mock_url=None,
                 stats_prefix='', max_page_size=-1):
     pagetimeout = float(config.read('Crawl', 'PageTimeout'))
 
+    # fr = FetcherResponse('response', 'body_bytes', 'response.request_info.headers',
+    #                      't_first_byte', 't_last_byte', 'is_truncated', None)
+    #
+
     if proxy:  # pragma: no cover
         proxy = aiohttp.ProxyConnector(proxy=proxy)
         # XXX we need to preserve the existing connector config (see cocrawler.__init__ for conn_kwargs)
