@@ -19,7 +19,7 @@ import cocrawler.config as config
 import cocrawler.stats as stats
 import cocrawler.timer as timer
 import cocrawler.webserver as webserver
-from cocrawler.urls import URL
+from cocrawler.task import Task
 
 
 LOGGER = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ faulthandler.enable()
 
 ARGS = argparse.ArgumentParser(description='CoCrawler web crawler')
 ARGS.add_argument('--config', action='append')
-ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Coding/PYTHON/cocrawler/tests/test-brc.yml')
+ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Coding/PYTHON/cocrawler/configs/main.yml')
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
@@ -54,15 +54,7 @@ def limit_resources():
         rlimit_as = hard
     resource.setrlimit(resource.RLIMIT_AS, (rlimit_as, hard))
 
-class Task(object):
-    def __init__(self,name,url=None,**kwargs):
-        assert url is not None
-        self.url = URL(url)
-        self.name = name
 
-        if kwargs:
-            for k,v in kwargs.items():
-                setattr(self,k,v)
 
 
 def dispatcher():
@@ -80,20 +72,24 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            yield Task(name='download',url=url,counter=counter)
+            yield Task(name='download',url=url,raw=True,counter=counter)
 
-            if counter > 20:
+            if counter > 100:
                 break
 
-    def task_download(self,task,fr,):
-        import random
-        print('--> calling first function, counter = {0}, url={1}'.format(task.counter,fr.response.url))
-        for i in range(1,3):
-            yield Task(name='second',url='http://google.com?id={0}&func=download'.format(task.counter+random.randint(10000,20000)),counter=task.counter)
+    def task_download(self,task):
+        if task.doc.status  == 200:
+            #print(task.html)
+            print('--> status good: {0}'.format(task.url.url))
+            if task.doc.html:
+                print('--> html len = {0}'.format(len(task.doc.html)))
+            else:
+                print('--> doc is empty: {0}'.format(task.url.url))
+
+        else:
+            print('--> bad code: {0}, last_exception: {1}'.format(task.url.url,task.doc.status))
 
 
-    def task_second(self,task,fr):
-        print('--> calling second download, counter = {0}, url={1}'.format(task.counter,fr.response.url))
 
 def main():
     '''
@@ -135,8 +131,7 @@ def main():
 
     loop = asyncio.get_event_loop()
 
-    #fut = asyncio.Task(cruzer.queue_producer())
-    #print(fut)
+
     slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
     if slow_callback_duration:
         loop.slow_callback_duration = float(slow_callback_duration)

@@ -8,6 +8,36 @@ Crawl:
 Plugins:
   url_allowed: SeedsHostname
 
+Fetcher:
+  Nameservers:
+  - 208.76.50.50
+  - 74.82.42.42
+  - 198.101.242.72
+  - 45.77.165.194
+  - 64.6.64.6
+  - 81.218.119.11
+  - 195.46.39.39
+  - 216.146.35.35
+  - 91.239.100.100
+  - 69.195.152.204
+  - 1.1.1.1
+  - 8.26.56.26
+  - 109.69.8.51
+  - 9.9.9.9
+  - 199.85.126.10
+  - 77.88.8.8
+  - 8.8.8.8
+  - 208.67.222.222
+  - 84.200.69.80
+  - 209.244.0.3
+  - 37.235.1.174
+  - 156.154.70.1
+  NameserverTries: 10
+  NameserverTimeout: 3.0
+  CrawlLocalhost: False  # crawl ips that resolve to localhost
+  CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
+  DNSCacheMaxSize: 1000000
+
 Multiprocess:
   ParseInBurnerSize: 1 # make sure the burner thread gets used 100%
   Affinity: yes

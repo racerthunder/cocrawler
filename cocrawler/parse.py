@@ -6,15 +6,48 @@ import logging
 import re
 import hashlib
 import urllib.parse
+from lxml.html import HTMLParser
+import defusedxml.lxml
+from six import BytesIO, StringIO
 
 from bs4 import BeautifulSoup
 
 from . import stats
 from .urls import URL
 from . import facet
+from .document import Document
 
 LOGGER = logging.getLogger(__name__)
 
+def soup_html(html, html_bytes, headers, burn_prefix='', url=None):
+
+    body_soup = None
+
+    with stats.record_burn(burn_prefix+'--> html soup', url=url):
+        try:
+            body_soup = BeautifulSoup(html, 'lxml')
+        except Exception as e:
+            LOGGER.info('url %s threw the %r exception in BeautifulSoup', url, e)
+            # TODO: if common, we need to recover not skip
+            raise
+
+    return body_soup
+
+def parse_html(html, html_bytes, headers, burn_prefix='', url=None):
+    doc = None
+
+    with stats.record_burn(burn_prefix+'--> html lxml', url=url):
+        try:
+            #doc = Document(html)
+            dom = defusedxml.lxml.parse(StringIO(html),
+                                    parser=HTMLParser())
+            doc = dom.getroot()
+        except Exception as e:
+            LOGGER.info('--> url %s threw the %r exception in Lxml', url, e)
+            # TODO: if common, we need to recover not skip
+            raise
+
+    return doc
 
 def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
     stats.stats_sum('parser html bytes', len(html_bytes))

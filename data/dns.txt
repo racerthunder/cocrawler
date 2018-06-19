@@ -1,0 +1,87 @@
+# SmartViper, not working
+#    208.76.50.50
+
+
+# Hurricane Electric
+    74.82.42.42
+
+
+# Alternate DNS, not working
+#   198.101.242.72
+
+
+# Fourth Estate
+    45.77.165.194
+
+
+# Verisign
+    64.6.64.6
+
+
+# GreenTeamDNS, not working
+#    81.218.119.11
+
+
+# SafeDNS
+    195.46.39.39
+
+
+# Dyn
+    216.146.35.35
+
+
+# UncensoredDNS
+    91.239.100.100
+
+
+# OpenNIC
+    69.195.152.204
+
+
+# Cloudfare
+    1.1.1.1
+
+
+# Comodo Secure DNS
+    8.26.56.26
+
+
+# puntCAT
+    109.69.8.51
+
+
+# Quad9
+    9.9.9.9
+
+
+# Norton ConnectSafe
+    199.85.126.10
+
+
+# Yandex.DNS
+    77.88.8.8
+
+
+# Google
+    8.8.8.8
+
+
+# OpenDNS Home
+    208.67.222.222
+
+
+# DNS.WATCH
+    84.200.69.80
+
+
+# Level3
+    209.244.0.3
+
+
+# FreeDNS
+    37.235.1.174
+
+
+# Neustar
+    156.154.70.1
+

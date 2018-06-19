@@ -217,8 +217,8 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
     # after we return, json_log will get logged
 
-
 async def post_200(f, url, priority, host_geoip, seed_host, json_log, crawler):
+
 
     if crawler.warcwriter is not None:  # needs to use the same algo as post_dns for choosing what to warc
         # XXX insert the digest we already computed, instead of computing it again?
@@ -251,71 +251,12 @@ async def post_200(f, url, priority, host_geoip, seed_host, json_log, crawler):
 
         charset_log(json_log, charset, detect, charset_used)
 
-        if len(body) > int(config.read('Multiprocess', 'ParseInBurnerSize')):
-            stats.stats_sum('parser in burner thread', 1)
-            # headers is a multidict.CIMultiDictProxy case-blind dict
-            # and the Proxy form of it doesn't pickle, so convert to one that does
-            resp_headers = multidict.CIMultiDict(resp_headers)
-            try:
-                links, embeds, sha1, facets = await crawler.burner.burn(
-                    partial(parse.do_burner_work_html, body, f.body_bytes, resp_headers,
-                            burn_prefix='burner ', url=url),
-                    url=url)
-            except ValueError as e:  # if it pukes, we get back no values
-                stats.stats_sum('parser raised', 1)
-                LOGGER.info('parser raised %r', e)
-                # XXX jsonlog
-                return
-        else:
-            stats.stats_sum('parser in main thread', 1)
-            try:
-                # no coroutine state because this is a burn, not an await
-                links, embeds, sha1, facets = parse.do_burner_work_html(
-                    body, f.body_bytes, resp_headers, burn_prefix='main ', url=url)
-            except ValueError:  # if it pukes, ..
-                stats.stats_sum('parser raised', 1)
-                # XXX jsonlog
-                return
-        json_log['checksum'] = sha1
+        return body, charset_used
 
-        geoip.add_facets(facets, host_geoip)
+    else:
+        return None,None
 
-        facet_log = {'url': url.url, 'facets': facets, 'kind': 'get'}
-        facet_log['checksum'] = sha1
-        facet_log['time'] = json_log['time']
-        if seed_host:
-            facet_log['seed_host'] = seed_host
 
-        if crawler.facetlogfd:
-            print(json.dumps(facet_log, sort_keys=True), file=crawler.facetlogfd)
-
-        LOGGER.debug('parsing content of url %r returned %d links, %d embeds, %d facets',
-                     url.url, len(links), len(embeds), len(facets))
-        json_log['found_links'] = len(links) + len(embeds)
-        stats.stats_max('max urls found on a page', len(links) + len(embeds))
-
-        max_tries = config.read('Crawl', 'MaxTries')
-
-        if not crawler.mode=='cruzer':
-            new_links = 0
-            for u in links:
-                ridealong = {'url': u, 'priority': priority+1, 'retries_left': max_tries}
-                if crawler.add_url(priority + 1, ridealong):
-                    new_links += 1
-            for u in embeds:
-                ridealong = {'url': u, 'priority': priority-1, 'retries_left': max_tries}
-                if crawler.add_url(priority - 1, ridealong):
-                    new_links += 1
-
-            if new_links:
-                json_log['found_new_links'] = new_links
-
-        # XXX process meta-http-equiv-refresh
-
-        # XXX plugin for links and new links - post to Kafka, etc
-        # neah stick that in add_url!
-
-        # actual jsonlog is emitted after the return
 
 
 def post_dns(dns, expires, url, crawler):

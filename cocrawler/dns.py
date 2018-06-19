@@ -13,6 +13,7 @@ import aiodns
 
 from . import stats
 from . import config
+from pathlib import Path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -140,9 +141,22 @@ def expire_some(t, lru, some, stats_prefix=''):
             lru[host] = entry
             break
 
+def get_ns():
+
+    files = config.read('Fetcher', 'Nameservers').get('File')
+
+    ns_list = []
+    for file_name in files:
+        config_dir =  Path(__file__).parent.parent / 'data'
+        full_file_path = config_dir / file_name
+        ls = [line.strip() for line in full_file_path.open(encoding='utf-8') if len(line)>1 and '#' not in line]
+        ns_list.extend(ls)
+
+    return ns_list
 
 def get_resolver(**kwargs):
-    ns = config.read('Fetcher', 'Nameservers')
+    #ns = config.read('Fetcher', 'Nameservers')
+    ns = get_ns()
     ns_tries = config.read('Fetcher', 'NameserverTries')
     ns_timeout = config.read('Fetcher', 'NameserverTimeout')
 

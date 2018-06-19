@@ -76,10 +76,10 @@ GeoIP:
 #  Port: 2004
 
 Plugins:
-  url_allowed: SeedsHostname
+  url_allowed: AllDomains
 
 Multiprocess:
-  BurnerThreads: 2
+  BurnerThreads: 8
   ParseInBurnerSize: 20000
 #  Affinity: yes
 

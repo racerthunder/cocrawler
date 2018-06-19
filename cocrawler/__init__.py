@@ -162,6 +162,9 @@ class Crawler:
     def __del__(self):
         self.connector.close()
 
+    def shutdown(self):
+        stats.coroutine_report()
+        self.cancel_workers()
     @property
     def seeds(self):
         return self._seeds
@@ -393,6 +396,7 @@ class Crawler:
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
 
 
+
         json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
                     't_first_byte': f.t_first_byte, 'time': time.time()}
         if seed_host:
@@ -402,11 +406,18 @@ class Crawler:
 
         if f.last_exception is not None or f.response.status >= 500:
             self._retry_if_able(work, ridealong)
-            return
+
+            # if task.raw is True return whatever happens, if False only 200 code matters
+            if ridealong['task'].raw is False:
+                return
+            else:
+                await self.make_callback(ridealong,f)
+                return
 
         # success
 
         self.scheduler.del_ridealong(surt)
+
 
         json_log['status'] = f.response.status
 
@@ -417,18 +428,19 @@ class Crawler:
         else:
 
             # all redirects already happend, get to callback function
-            partial = functools.partial(self.load_task_function, ridealong, f)
-            with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
-                try:
-                    await self.loop.run_in_executor(None,partial)
 
-                except ValueError as e:  # if it pukes, ..
-                    stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
-                    LOGGER.info('parser raised %r', e)
+            if f.response.status == 200:
 
-        # if f.response.status == 200:
-        #     await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
-        #
+                html, charset_used = await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
+
+
+                ridealong['task'].doc.html = html
+
+
+
+            await self.make_callback(ridealong,f)
+
+
 
         LOGGER.debug('size of work queue now stands at %r urls', self.scheduler.qsize())
         LOGGER.debug('size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
@@ -441,6 +453,17 @@ class Crawler:
         if self.crawllogfd:
             print(json.dumps(json_log, sort_keys=True), file=self.crawllogfd)
 
+    async def make_callback(self,ridealong,f):
+        partial = functools.partial(self.load_task_function, ridealong, f)
+        with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
+            try:
+                await self.loop.run_in_executor(None,partial)
+
+            except ValueError as e:  # if it pukes, ..
+                stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
+                LOGGER.info('parser raised %r', e)
+
+
     def load_task_function(self,ridealong,fr):
         task_name = 'task_{0}'.format(ridealong['task'].name)
         task_func = getattr(self,task_name,None)
@@ -448,13 +471,18 @@ class Crawler:
         if task_func is None:
             raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
 
-        task_generator = task_func(ridealong['task'],fr)
+        # yeild from function
+        ridealong['task'].doc.fetcher = fr
+        ridealong['task'].doc.status = fr.response.status if fr.response else fr.last_exception
+
+
+        task_generator = task_func(ridealong['task'])
 
         while True:
             try:
                 task = next(task_generator)
                 ride_along = self.get_ridealong(task)
-                self.add_deffered_task(0,ride_along)
+                self.add_deffered_task(2,ride_along)
             except (StopIteration,TypeError):
                 # TypeError is raised when task returns nothing
                 LOGGER.debug('--> No task left in: {0}'.format(task_name))
