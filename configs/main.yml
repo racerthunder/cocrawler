@@ -3,7 +3,7 @@ Crawl:
   MaxTries: 4
   PageTimeout: 10
   RetryTimeout: 5
-  MaxWorkers: 2
+  MaxWorkers: 5
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
@@ -30,8 +30,8 @@ Multiprocess:
 
 Logging:
 #  LoggingLevel: 3
-  Crawllog: crawllog.jsonl
-  Robotslog: robotslog.jsonl
+  Crawllog: ../log/crawllog.jsonl
+  Robotslog: ../log/robotslog.jsonl
 
 UserAgent:
   Style: crawler
