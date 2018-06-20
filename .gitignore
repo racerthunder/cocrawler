@@ -7,3 +7,4 @@ build/
 dist/
 cocrawler.egg-info/
 log/
+*.jsonl
