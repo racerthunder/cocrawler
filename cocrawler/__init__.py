@@ -255,7 +255,7 @@ class Crawler:
 
         await self.scheduler.queue_work_async((priority, rand, url.surt))
 
-        self.datalayer.add_seen_url(url)
+        self.datalayer.add_crawled(url)
         return 1
 
 
@@ -514,7 +514,7 @@ class Crawler:
             try:
                 task = next(task_generator)
                 ride_along = self.get_ridealong(task)
-                self.add_deffered_task(2,ride_along)
+                self.add_deffered_task(3,ride_along)
             except (StopIteration,TypeError):
                 # TypeError is raised when task returns nothing
                 LOGGER.debug('--> No task left in: {0}'.format(task_name))
@@ -662,6 +662,7 @@ class Crawler:
         yield ':)'
 
     def add_deffered_task(self,priority, ridealong):
+        #priority =  heigher number = higher priority
         # add urls from redirects detection and from cruzer callback functions
         self.deffered_queue.put_nowait((priority,ridealong))
 

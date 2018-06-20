@@ -3,7 +3,7 @@ Crawl:
   MaxTries: 4
   PageTimeout: 10
   RetryTimeout: 5
-  MaxWorkers: 5
+  MaxWorkers: 2
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
