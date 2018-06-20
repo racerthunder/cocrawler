@@ -124,7 +124,7 @@ class Crawler:
 
         self.datalayer = datalayer.Datalayer()
         self.robots = robots.Robots(self.robotname, self.session, self.datalayer)
-        self.scheduler = scheduler.Scheduler(self.robots)
+        self.scheduler = scheduler.Scheduler(self.max_workers,self.robots)
 
         self.crawllog = config.read('Logging', 'Crawllog')
         if self.crawllog:

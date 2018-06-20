@@ -8,3 +8,4 @@ dist/
 cocrawler.egg-info/
 log/
 *.jsonl
+*.jsonl
