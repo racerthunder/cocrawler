@@ -30,8 +30,8 @@ Multiprocess:
 
 Logging:
 #  LoggingLevel: 3
-  Crawllog: crawllog.jsonl
-  Robotslog: robotslog.jsonl
+  Crawllog: ../log/crawllog.jsonl
+  Robotslog: ../log/robotslog.jsonl
 
 UserAgent:
   Style: crawler
