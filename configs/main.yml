@@ -38,6 +38,3 @@ UserAgent:
   MyPrefix: test-deep
   URL: http://example.com/cocrawler.html
 
-
-System:
-  RLIMIT_AS_gigabytes: 8
