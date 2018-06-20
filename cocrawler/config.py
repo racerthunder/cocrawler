@@ -45,7 +45,9 @@ Crawl:
   PreventCompression: False
   UpgradeInsecureRequests: 1
   ConnectTimeout: 0.  # seconds, 0.=none
-#  MaxCrawledUrls: 11
+#  GlobalBudget: None
+#  DomainBudget: None
+#  HostBudget: None
 
 UserAgent:
   Style: laptopplus
@@ -99,6 +101,7 @@ Logging: {}
 # note that the following files are all opened for append, for
 # restart purposes. Might change to unique filenames?
 #  Crawllog: crawllog.jsonl
+#  Frontierlog: frontierlog
 #  Robotslog: robotslog.jsonl
 #  RejectedAddUrllog: rejectedaddurl.log
 #  Facetlog: facet.log

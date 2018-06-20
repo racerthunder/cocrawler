@@ -51,7 +51,7 @@ def expand_seeds_config(crawler):
         for h in seeds['CrawledHosts']:
             u = special_seed_handling(h)
             if u is not None:
-                crawler.datalayer.add_seen_url(URL(u))
+                crawler.datalayer.add_crawled(URL(u))
 
     seed_files = seeds.get('Files', [])
     dedup = set()
@@ -101,20 +101,21 @@ def expand_seeds_config(crawler):
                 for line in f:
                     seed_host, u = sanatize(line, dedup)
                     if seed_host:
-                        crawler.datalayer.add_seen_url(URL(u))
+                        crawler.datalayer.add_crawled(URL(u))
 
     return seed_some_urls(final_urls, crawler)
 
 
-def seed_some_urls(urls, crawler):
+def seed_some_urls(urls, crawler, skip_crawled=False):
     freeseedredirs = config.read('Seeds', 'FreeSeedRedirs')
     retries_left = config.read('Seeds', 'SeedRetries') or config.read('Crawl', 'MaxTries')
     priority = 1
 
     for seed_host, url, second_chance_url in urls:
         ridealong = {'url': url, 'priority': priority, 'seed': True,
-                     'skip_seen_url': True, 'retries_left': retries_left,
-                     'seed_host': seed_host}
+                     'retries_left': retries_left, 'seed_host': seed_host}
+        if skip_crawled:
+            ridealong['skip_crawled'] = skip_crawled
         if second_chance_url:
             ridealong['second_chance_url'] = second_chance_url
         if freeseedredirs:
@@ -166,13 +167,12 @@ def fail(ridealong, crawler):
         return
 
     url = ridealong['url']
-    LOGGER.info('Received a final failure for seed url %s', url.url)
-    stats.stats_sum('seeds failed', 1)
-
     if 'second_chance_url' not in ridealong:
+        LOGGER.info('Received a final failure for seed url %s', url.url)
+        stats.stats_sum('seeds failed', 1)
         return
 
     two = ridealong['second_chance_url']
     seed_host = ridealong.get('seed_host', None)
 
-    seed_some_urls(((seed_host, URL(two), None),), crawler)
+    seed_some_urls(((seed_host, URL(two), None),), crawler, skip_crawled=True)
