@@ -75,7 +75,6 @@ class Crawler:
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
         self.max_workers = int(config.read('Crawl', 'MaxWorkers'))
-        self.scheduler = scheduler.Scheduler(self.max_workers)
         self.workers = []
         self.init_generator = self.task_generator()
         self.init_urls_loaded = False # set to True once all urls from init list are consumed
@@ -110,21 +109,34 @@ class Crawler:
         conn = aiohttp.connector.TCPConnector(**self.conn_kwargs)
         self.connector = conn
 
-        conn_timeout = config.read('Crawl', 'ConnectTimeout')
-        if not conn_timeout:
-            conn_timeout = None  # docs say 0. is no timeout, docs lie
+        connect_timeout = config.read('Crawl', 'ConnectTimeout')
+        page_timeout = float(config.read('Crawl', 'PageTimeout'))
+        timeout_kwargs = {}
+        if connect_timeout:
+            timeout_kwargs['sock_connect'] = connect_timeout
+        if page_timeout:
+            timeout_kwargs['total'] = page_timeout
+        timeout = aiohttp.ClientTimeout(**timeout_kwargs)
+
         cookie_jar = aiohttp.DummyCookieJar()
         self.session = aiohttp.ClientSession(connector=conn, cookie_jar=cookie_jar,
-                                             conn_timeout=conn_timeout)
+                                             timeout=timeout)
 
         self.datalayer = datalayer.Datalayer()
         self.robots = robots.Robots(self.robotname, self.session, self.datalayer)
+        self.scheduler = scheduler.Scheduler(self.max_workers,self.robots)
 
         self.crawllog = config.read('Logging', 'Crawllog')
         if self.crawllog:
             self.crawllogfd = open(self.crawllog, 'a')
         else:
             self.crawllogfd = None
+
+        self.frontierlog = config.read('Logging', 'Frontierlog')
+        if self.frontierlog:
+            self.frontierlogfd = open(self.frontierlog, 'a')
+        else:
+            self.frontierlogfd = None
 
         self.rejectedaddurl = config.read('Logging', 'RejectedAddUrllog')
         if self.rejectedaddurl:
@@ -173,9 +185,14 @@ class Crawler:
     def qsize(self):
         return self.scheduler.qsize()
 
-    def log_rejected_add_url(self, url):
+    def log_rejected_add_url(self, url, reason):
         if self.rejectedaddurlfd:
-            print(url.url, file=self.rejectedaddurlfd)
+            log_line = {'url': url.url, 'reason': reason}
+            print(json.dumps(log_line, sort_keys=True), file=self.rejectedaddurlfd)
+
+    def log_frontier(self, url):
+        if self.frontierlogfd:
+            print(url.url, file=self.frontierlogfd)
 
     async def add_url_async(self, priority, ridealong):
         # XXX eventually do something with the frag - record as a "javascript-needed" clue
@@ -238,7 +255,7 @@ class Crawler:
 
         await self.scheduler.queue_work_async((priority, rand, url.surt))
 
-        self.datalayer.add_seen_url(url)
+        self.datalayer.add_crawled(url)
         return 1
 
 
@@ -257,34 +274,47 @@ class Crawler:
             if 'seed' in ridealong:
                 seeds.seed_from_redir(url)
 
-            # XXX allow/deny plugin modules go here
-            if priority > int(config.read('Crawl', 'MaxDepth')):
-                stats.stats_sum('rejected by MaxDepth', 1)
-                self.log_rejected_add_url(url)
-                return
-            if 'skip_seen_url' not in ridealong:
-                if self.datalayer.seen_url(url):
-                    stats.stats_sum('rejected by seen_urls', 1)
-                    self.log_rejected_add_url(url)
-                    return
-            else:
-                del ridealong['skip_seen_url']
+        # XXX allow/deny plugin modules go here
+        if not self.robots.check_cached(url):
+            reason = 'rejected by cached robots'
+            stats.stats_sum('add_url '+reason, 1)
+            self.log_rejected_add_url(url, reason)
+            return
+
+        reason = None
 
         allowed = url_allowed.url_allowed(url)
         if not allowed:
-            LOGGER.debug('url %s was rejected by url_allow.', url.url)
-            stats.stats_sum('rejected by url_allowed', 1)
-            self.log_rejected_add_url(url)
-            return
-        if allowed.url != url.url:
+            reason = 'rejected by url_allowed'
+        elif allowed.url != url.url:
             LOGGER.debug('url %s was modified to %s by url_allow.', url.url, allowed.url)
-            stats.stats_sum('modified by url_allowed', 1)
+            stats.stats_sum('add_url modified by url_allowed', 1)
             url = allowed
             ridealong['url'] = url
-            if self.datalayer.seen_url(url):
-                stats.stats_sum('rejected by seen_urls', 1)
-                self.log_rejected_add_url(url)
-                return
+
+        if reason:
+            pass
+        elif priority > int(config.read('Crawl', 'MaxDepth')):
+            reason = 'rejected by MaxDepth'
+        elif 'skip_crawled' not in ridealong and self.datalayer.crawled(url):
+            reason = 'rejected by crawled'
+        elif not self.scheduler.check_budgets(url):
+            # the budget is debited here, so it has to be last
+            reason = 'rejected by crawl budgets'
+
+        if 'skip_crawled' in ridealong:
+            self.log_frontier(url)
+        elif not self.datalayer.crawled(url):
+            self.log_frontier(url)
+
+        if reason:
+            stats.stats_sum('add_url '+reason, 1)
+            self.log_rejected_add_url(url, reason)
+            LOGGER.debug('add_url no, reason %s url %s', reason, url.url)
+            return
+
+        if 'skip_crawled' in ridealong:
+            del ridealong['skip_crawled']
 
         # end allow/deny plugin
 
@@ -303,7 +333,7 @@ class Crawler:
 
         self.scheduler.queue_work((priority, rand, url.surt))
 
-        self.datalayer.add_seen_url(url)
+        self.datalayer.add_crawled(url)
         return 1
 
     def cancel_workers(self):
@@ -325,6 +355,8 @@ class Crawler:
             self.rejectedaddurlfd.close()
         if self.facetlogfd:
             self.facetlogfd.close()
+        if self.frontierlogfd:
+            self.frontierlogfd.close()
         if self.scheduler.qsize():
             LOGGER.warning('at exit, non-zero qsize=%d', self.scheduler.qsize())
         await self.session.close()
@@ -414,10 +446,10 @@ class Crawler:
                 await self.make_callback(ridealong,f)
                 return
 
-        # success
-
         self.scheduler.del_ridealong(surt)
 
+        if f.response.status >= 400 and 'seed' in ridealong:
+            seeds.fail(ridealong, self)
 
         json_log['status'] = f.response.status
 
@@ -482,7 +514,7 @@ class Crawler:
             try:
                 task = next(task_generator)
                 ride_along = self.get_ridealong(task)
-                self.add_deffered_task(2,ride_along)
+                self.add_deffered_task(3,ride_along)
             except (StopIteration,TypeError):
                 # TypeError is raised when task returns nothing
                 LOGGER.debug('--> No task left in: {0}'.format(task_name))
@@ -630,6 +662,7 @@ class Crawler:
         yield ':)'
 
     def add_deffered_task(self,priority, ridealong):
+        #priority =  heigher number = higher priority
         # add urls from redirects detection and from cruzer callback functions
         self.deffered_queue.put_nowait((priority,ridealong))
 

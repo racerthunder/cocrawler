@@ -191,7 +191,7 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
     priority += 1
 
     if samesurt and redir_kind != 'same':
-        ridealong['skip_seen_url'] = True
+        ridealong['skip_crawled'] = True
 
     if 'freeredirs' in ridealong:
         priority -= 1

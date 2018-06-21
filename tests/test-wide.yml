@@ -1,5 +1,5 @@
 Crawl:
-  MaxCrawledUrls: 5000 # prevent a runaway
+  GlobalBudget: 5000 # prevent a runaway
   UserAgent: cocrawler-test/0.01
   PageTimeout: 5
   RetryTimeout: 0.1
@@ -32,7 +32,7 @@ Testing:
     fetch http code=200: 11
     fetch http code=303: 1
     max urls found on a page: 3
-    rejected by seen_urls: 2
-    robots denied: 4
+    add_url rejected by crawled: 2
+    robots denied: 13  # one per crawled plus ... ?
   StatsGE:
     fetch http code=503: 1

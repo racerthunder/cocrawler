@@ -24,9 +24,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Scheduler:
-    def __init__(self,max_workers):
+    def __init__(self,max_workers, robots):
         self.max_workers=max_workers
-        self.q = asyncio.PriorityQueue(maxsize=self.max_workers*20)
+        self.q = asyncio.PriorityQueue()
         self.ridealong = {}
         self.awaiting_work = 0
         self.maxhostqps = None
@@ -35,7 +35,49 @@ class Scheduler:
         self.frozen_until = cachetools.ttl.TTLCache(10000, 10)  # 10 seconds is longer than our typical delay
         self.maxhostqps = float(config.read('Crawl', 'MaxHostQPS'))
         self.delta_t = 1./self.maxhostqps
-        self.max_crawled_urls = int(config.read('Crawl', 'MaxCrawledUrls') or 0) or None  # 0 => None
+        self.initialize_budgets()
+        self.robots = robots
+
+    def initialize_budgets(self):
+        self.budgets = {}
+        self.budget_default = {}
+        for which, conf in (('global_budget', 'GlobalBudget'), ('domain_budget', 'DomainBudget'),
+                            ('host_budget', 'HostBudget')):
+            value = config.read('Crawl', conf)
+            self.budgets[which] = {}
+            if value is not None:
+                self.budget_default[which] = int(value)
+
+    def check_budget(self, which, key):
+        budget = self.budgets[which]
+        if key not in budget and which in self.budget_default:
+            budget[key] = self.budget_default[which]
+        if key in budget:
+            if budget[key] > 0:
+                budget[key] -= 1
+                return True
+            else:
+                return False
+        else:
+            return None
+
+    def check_budgets(self, url):
+        hb = self.check_budget('host_budget', url.hostname_without_www)
+        if hb is not None:
+            return hb
+        db = self.check_budget('domain_budget', url.registered_domain)
+        if db is not None:
+            return db
+        gb = self.check_budget('global_budget', None)
+        if gb is not None:
+            return gb
+        return True
+
+    def max_crawled_urls_exceeded(self):
+        #if ((self.max_crawled_urls is not None and
+        #     (stats.stat_value('fetch http code=200') or 0) >= self.max_crawled_urls)):
+        #    return True
+        return False
 
     async def get_work(self):
         '''
@@ -43,6 +85,9 @@ class Scheduler:
         if work can't be done immediately.
         '''
         while True:
+            if self.max_crawled_urls_exceeded():
+                raise asyncio.CancelledError  # cancel this one worker
+
             try:
                 work = self.q.get_nowait()
             except asyncio.queues.QueueEmpty:
@@ -55,21 +100,20 @@ class Scheduler:
                     work = await self.q.get()
                 self.awaiting_work -= 1
 
-            if ((self.max_crawled_urls is not None and
-                 (stats.stat_value('fetch http code=200') or 0) >= self.max_crawled_urls)):
+            if self.max_crawled_urls_exceeded():
                 self.q.put_nowait(work)
                 self.q.task_done()
-                raise asyncio.CancelledError
+                raise asyncio.CancelledError  # cancel this one worker
 
             now = time.time()
             surt = work[2]
             surt_host, _, _ = surt.partition(')')
             ridealong = self.get_ridealong(surt)
 
-            recycle, why, dt = self.do_we_recycle(now, surt, surt_host, ridealong)
+            recycle, why, dt = self.schedule_work(now, surt, surt_host, ridealong)
 
-            # sleep then requeue
             if recycle:
+                # sleep then requeue
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
                     await asyncio.sleep(dt)
@@ -78,7 +122,6 @@ class Scheduler:
                     continue
 
             # Normal case: sleep if needed, and then return the work to the caller.
-            self.next_fetch[surt_host] = now + dt + self.delta_t
             if dt > 0:
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
@@ -87,10 +130,8 @@ class Scheduler:
 
             return work
 
-    def do_we_recycle(self, now, surt, surt_host, ridealong):
-        recycle = False
-        why = None
-        dt = 0
+    def schedule_work(self, now, surt, surt_host, ridealong):
+        recycle, why, dt = False, None, 0
 
         # does host have cached dns? XXX
         # if not, and we're The One, fetch it
@@ -100,18 +141,28 @@ class Scheduler:
         # if not, and we're The One, fetch it
         # if not, and we aren't The One, recycle
 
+        if not self.robots.check_cached(ridealong['url'], quiet=True):
+            # do use a slot; fall through so that the fetch will fail robots
+            recycle = False
+            why = 'scheduler cached robots deny'
+            return recycle, why, 0.
+
         # when's the next available rate limit slot?
         now = time.time()
         if surt_host in self.next_fetch:
             dt = max(self.next_fetch[surt_host] - now, 0.)
         else:
             dt = 0
+
         if dt > 3.0:
             recycle = True
             why = 'scheduler ratelimit recycle'
             dt = 3.0
         elif dt > 0:
             why = 'scheduler ratelimit short sleep'
+            self.next_fetch[surt_host] = now + dt + self.delta_t
+        else:
+            self.next_fetch[surt_host] = now + self.delta_t
 
         return recycle, why, dt
 
