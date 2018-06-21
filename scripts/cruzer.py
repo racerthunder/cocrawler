@@ -32,7 +32,7 @@ ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Codin
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--loglevel', action='store', default='INFO')
+ARGS.add_argument('--loglevel', action='store', default='DEBUG')
 ARGS.add_argument('--load', action='store')
 
 

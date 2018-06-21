@@ -2,7 +2,6 @@ import defusedxml.lxml
 from lxml.html import HTMLParser,HtmlElement
 from selection import XpathSelector
 from six import BytesIO, StringIO
-from weblib.etree import render_html
 
 
 class Document():
