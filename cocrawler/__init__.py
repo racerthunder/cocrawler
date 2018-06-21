@@ -13,6 +13,13 @@ import traceback
 import concurrent
 import functools
 
+import sys
+import resource
+import os
+import faulthandler
+import gc
+import warnings
+
 import asyncio
 import uvloop
 import logging
@@ -36,6 +43,10 @@ from . import config
 from . import warc
 from . import dns
 from . import geoip
+
+from . import stats
+from . import timer
+from . import webserver
 
 LOGGER = logging.getLogger(__name__)
 __title__ = 'cocrawler'
@@ -215,7 +226,7 @@ class Crawler:
                 self.log_rejected_add_url(url)
                 return
             if 'skip_seen_url' not in ridealong:
-                if self.datalayer.seen_url(url):
+                if self.datalayer.crawled(url):
                     stats.stats_sum('rejected by seen_urls', 1)
                     self.log_rejected_add_url(url)
                     return
@@ -233,7 +244,7 @@ class Crawler:
             stats.stats_sum('modified by url_allowed', 1)
             url = allowed
             ridealong['url'] = url
-            if self.datalayer.seen_url(url):
+            if self.datalayer.crawled(url):
                 stats.stats_sum('rejected by seen_urls', 1)
                 self.log_rejected_add_url(url)
                 return
@@ -760,3 +771,100 @@ class Crawler:
             LOGGER.warning('saving datalayer and queues')
             self.save_all()
             LOGGER.warning('saving done')
+
+    @classmethod
+    def limit_resources(cls):
+        _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        # XXX warn if too few compared to max_wokers?
+        if sys.platform=='darwin':
+            hard = 10240
+
+        resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
+
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)  # RLIMIT_VMEM does not exist?!
+        rlimit_as = int(config.read('System', 'RLIMIT_AS_gigabytes'))
+        rlimit_as *= 1024 * 1024 * 1024
+        if rlimit_as == 0:
+            return
+        if hard > 0 and rlimit_as > hard:
+            LOGGER.error('RLIMIT_AS limited to %d bytes by system limit', hard)
+            rlimit_as = hard
+        resource.setrlimit(resource.RLIMIT_AS, (rlimit_as, hard))
+
+
+    @classmethod
+    def run(cls,ARGS):
+
+        '''
+        Main program: parse args, read config, set up event loop, run the crawler.
+        '''
+
+        faulthandler.enable()
+        args = ARGS.parse_args()
+
+        if args.printdefault:
+            config.print_default()
+            sys.exit(1)
+
+        loglevel = os.getenv('COCRAWLER_LOGLEVEL') or args.loglevel
+        logging.basicConfig(level=loglevel)
+
+        config.config(args.configfile, args.config, confighome=not args.no_confighome)
+
+        cls.limit_resources()
+
+        if os.getenv('PYTHONASYNCIODEBUG') is not None:
+            logging.captureWarnings(True)
+            warnings.simplefilter('default', category=ResourceWarning)
+            if LOGGER.getEffectiveLevel() > logging.WARNING:
+                LOGGER.setLevel(logging.WARNING)
+                LOGGER.warning('Lowered logging level to WARNING because PYTHONASYNCIODEBUG env var is set')
+            LOGGER.warning('Configured logging system to show ResourceWarning because PYTHONASYNCIODEBUG env var is set')
+            LOGGER.warning('Note that this does have a significant impact on asyncio overhead')
+        if os.getenv('COCRAWLER_GC_DEBUG') is not None:
+            LOGGER.warning('Configuring gc debugging')
+            gc.set_debug(gc.DEBUG_STATS | gc.DEBUG_UNCOLLECTABLE)
+
+        kwargs = {}
+        if args.load:
+            kwargs['load'] = args.load
+        if args.no_test:
+            kwargs['no_test'] = True
+
+        cruzer = cls(**kwargs)
+
+        loop = asyncio.get_event_loop()
+
+
+        slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
+        if slow_callback_duration:
+            loop.slow_callback_duration = float(slow_callback_duration)
+            LOGGER.warning('set slow_callback_duration to %f', slow_callback_duration)
+
+        if config.read('CarbonStats'):
+            timer.start_carbon()
+
+        if config.read('REST'):
+            app = webserver.make_app()
+        else:
+            app = None
+
+        try:
+            loop.run_until_complete(cruzer.crawl())
+        except KeyboardInterrupt:
+            sys.stderr.flush()
+            print('\nInterrupt. Exiting cleanly.\n')
+            stats.coroutine_report()
+            cruzer.cancel_workers()
+        finally:
+            loop.run_until_complete(cruzer.close())
+            if app:
+                webserver.close(app)
+            if config.read('CarbonStats'):
+                timer.close()
+            # apparently this is needed for full aiohttp cleanup -- or is it cargo cult
+            loop.stop()
+            loop.run_forever()
+            loop.close()
+
+        exit(stats.exitstatus)
