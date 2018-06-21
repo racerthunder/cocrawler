@@ -707,7 +707,7 @@ class Crawler:
         self.producer = asyncio.Task(self.queue_producer())
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
-        self.connector._limit = 10000 # used in above async task
+
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
         self.deffered_queue_checker = asyncio.Task(self.deffered_queue_processor())
         # this is now the 'main' coroutine
