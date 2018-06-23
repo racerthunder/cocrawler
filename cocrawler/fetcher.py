@@ -63,7 +63,7 @@ FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'req_
                                                  'last_exception'])
 
 
-async def fetch(url, session, headers=None, proxy=None, mock_url=None,
+async def fetch(url, session,post=None, headers=None, proxy=None, mock_url=None,
                 allow_redirects=None, max_redirects=None,
                 stats_prefix='', max_page_size=-1):
 
@@ -90,10 +90,19 @@ async def fetch(url, session, headers=None, proxy=None, mock_url=None,
 
         with stats.coroutine_state(stats_prefix+'fetcher fetching'):
             with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
-                response = await session.get(mock_url or url.url,
+
+                if post is not None:
+
+                    response = await session.post(mock_url or url.url,
                                              allow_redirects=allow_redirects,
                                              max_redirects=max_redirects,
-                                             headers=headers)
+                                             headers=headers,data=post)
+
+                else:
+                    response = await session.get(mock_url or url.url,
+                                                 allow_redirects=allow_redirects,
+                                                 max_redirects=max_redirects,
+                                                 headers=headers)
 
                 # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
                 # XXX should use tracing events to get t_first_byte

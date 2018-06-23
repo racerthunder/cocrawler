@@ -2,6 +2,7 @@ import defusedxml.lxml
 from lxml.html import HTMLParser,HtmlElement
 from selection import XpathSelector
 from six import BytesIO, StringIO
+from .cookie import CookieManager
 
 
 class Document():
@@ -10,7 +11,7 @@ class Document():
         self._etree = None
         self._fetcher = None # fetcher complete response object
         self.status = None # (int or last_exception) status taken from fetcher response object for quick access
-
+        self.cookies = CookieManager()
 
     def parse(self,html=None):
         """

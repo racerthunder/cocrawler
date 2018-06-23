@@ -3,10 +3,10 @@
 '''
 Cruzer crawler
 '''
-
+import pathlib
 import argparse
 import cocrawler
-from cocrawler.task import Task
+from cocrawler.task import Task, Req
 
 
 
@@ -16,15 +16,14 @@ ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Codin
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--loglevel', action='store', default='INFO')
+ARGS.add_argument('--loglevel', action='store', default='DEBUG')
 ARGS.add_argument('--load', action='store')
 
 
 
 
 def dispatcher():
-    import pathlib
-    #urls = ['http://tut.by','http://mail.ru','http://habr.com']
+
     path = pathlib.Path(__file__).parent.parent / 'data' / 'top-1k.txt'
     urls = [line.strip() for line in path.open()]
     for url in urls:
@@ -38,22 +37,22 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            yield Task(name='download',url=url,raw=True,counter=counter)
+            url = 'http://httpbin.org/post'
+            post = {'data':'val','data2':'val2'}
+            req = Req(url)
+            req.set_post(post)
+            yield Task(name='download',req=req,raw=True,counter=counter)
 
-            if counter > 100:
+            if counter > 0:
                 break
 
     def task_download(self,task):
         if task.doc.status  == 200:
-            #print(task.html)
-            print('--> status good: {0}'.format(task.url.url))
-            if task.doc.html:
-                print('--> html len = {0}'.format(len(task.doc.html)))
-            else:
-                print('--> doc is empty: {0}'.format(task.url.url))
+            print('--> status good: {0}'.format(task.last_url))
 
+            print(f'--> response: {task.doc.html}')
         else:
-            print('--> bad code: {0}, last_exception: {1}'.format(task.url.url,task.doc.status))
+            print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
 
 
 

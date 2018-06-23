@@ -54,6 +54,7 @@ __author__ = 'Greg Lindahl and others'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2016-2017 Greg Lindahl and others'
 
+faulthandler.enable()
 
 class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
     '''
@@ -435,9 +436,8 @@ class Crawler:
         # ---> end skip section <--
 
 
-        f = await fetcher.fetch(url, self.session, max_page_size=self.max_page_size,
+        f = await fetcher.fetch(url, self.session, post=ridealong['task'].req.post, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
-
 
 
         json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
@@ -517,7 +517,7 @@ class Crawler:
         # yeild from function
         ridealong['task'].doc.fetcher = fr
         ridealong['task'].doc.status = fr.response.status if fr.response else fr.last_exception
-
+        ridealong['task'].last_url = fr.response.url if fr.response else None
 
         task_generator = task_func(ridealong['task'])
 
@@ -666,7 +666,8 @@ class Crawler:
 
     def get_ridealong(self,task):
         #overwrite this method to customoze ridealong
-        ride_along = {'url': task.url,'task':task,'skip_seen_url':True}
+        # url = Url instance
+        ride_along = {'url': task.req.url,'task':task,'skip_seen_url':True}
         return ride_along
 
     def task_generator(self):
@@ -687,8 +688,11 @@ class Crawler:
                 LOGGER.debug('--> deffered queue is empty')
                 await asyncio.sleep(0.1)
 
-    async def queue_producer(self):
+            except Exception as ex:
+                traceback.print_exc()
+                break
 
+    async def queue_producer(self):
         while True:
             # deffered queue has priority over initail urls, that why we also include it here
             # do not try to get items from this queue here since it could be racy with main coroutine
@@ -696,8 +700,13 @@ class Crawler:
                 await asyncio.sleep(0.1)
             try:
                 task = next(self.init_generator)
+                LOGGER.debug('--> new task submited: "{0}" for {1}'.format(task.name,task.req.url.url))
             except StopIteration:
                 LOGGER.debug('--> cruzer iter is empty')
+                break
+
+            except Exception as ex:
+                traceback.print_exc()
                 break
 
             ride_along = self.get_ridealong(task)
@@ -799,7 +808,7 @@ class Crawler:
         Main program: parse args, read config, set up event loop, run the crawler.
         '''
 
-        faulthandler.enable()
+
         args = ARGS.parse_args()
 
         if args.printdefault:
