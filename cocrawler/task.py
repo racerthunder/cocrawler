@@ -25,6 +25,11 @@ class Req():
             raise ValueError('--> post must be Dict')
         self.post = data
 
+    def set_cookie(self,data):
+        if not isinstance(data,dict):
+            raise ValueError('--> cookie must be Dict')
+        self.cookies = data
+
 class Task():
     def __init__(self,name,req,raw=False,**kwargs):
         self.req = req

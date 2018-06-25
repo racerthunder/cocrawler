@@ -37,10 +37,10 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            url = 'http://httpbin.org/post'
-            post = {'data':'val','data2':'val2'}
+            url = 'httpbin.org/cookies'
+            cookie = {'data':'val','data2':'val2'}
             req = Req(url)
-            req.set_post(post)
+            req.set_cookie(cookie)
             yield Task(name='download',req=req,raw=True,counter=counter)
 
             if counter > 0:

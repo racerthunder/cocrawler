@@ -72,9 +72,10 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 
 
 class Crawler:
-    def __init__(self, load=None, no_test=False, paused=False):
+    def __init__(self, reuse_session=True,load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
+        self.reuse_session = reuse_session
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -128,11 +129,9 @@ class Crawler:
             timeout_kwargs['sock_connect'] = connect_timeout
         if page_timeout:
             timeout_kwargs['total'] = page_timeout
-        timeout = aiohttp.ClientTimeout(**timeout_kwargs)
+        self.timeout = aiohttp.ClientTimeout(**timeout_kwargs)
 
-        cookie_jar = aiohttp.DummyCookieJar()
-        self.session = aiohttp.ClientSession(connector=conn, cookie_jar=cookie_jar,
-                                             timeout=timeout)
+        self._session = None
 
         self.datalayer = datalayer.Datalayer()
         self.robots = robots.Robots(self.robotname, self.session, self.datalayer)
@@ -182,6 +181,27 @@ class Crawler:
 
         LOGGER.info('Touch %s to stop the crawler.', self.stop_crawler)
         LOGGER.info('Touch %s to pause the crawler.', self.pause_crawler)
+
+    @property
+    def session(self):
+        '''
+        if we reuse session we create new instance for each task to handle cookie out-of-the-box
+        :return:
+        '''
+        if self.reuse_session:
+            cookie_jar = aiohttp.CookieJar(unsafe=True)
+            __session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+                                              timeout=self.timeout)
+
+            return __session
+        else:
+            if self._session is None:
+                cookie_jar = aiohttp.DummyCookieJar()
+
+                self._session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+                                                      timeout=self.timeout)
+
+            return self._session
 
     def __del__(self):
         self.connector.close()
@@ -371,7 +391,8 @@ class Crawler:
             self.frontierlogfd.close()
         if self.scheduler.qsize():
             LOGGER.warning('at exit, non-zero qsize=%d', self.scheduler.qsize())
-        await self.session.close()
+        if self.reuse_session is False:
+            await self.session.close()
 
     def _retry_if_able(self, work, ridealong):
         LOGGER.debug('--> retrying work: {0}'.format(work))
