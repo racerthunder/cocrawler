@@ -246,7 +246,6 @@ async def post_200(f, url, priority, host_geoip, seed_host, json_log, crawler):
     if content_type in html_types:
         with stats.record_burn('response body get_encoding', url=url):
             encoding, detect = my_get_encoding(charset, f.body_bytes)
-            print(f'--> encoding: {encoding}')
         with stats.record_burn('response body decode', url=url):
             body, charset_used = my_decode(f.body_bytes, encoding, detect)
 

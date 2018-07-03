@@ -141,11 +141,11 @@ class Scheduler:
         # if not, and we're The One, fetch it
         # if not, and we aren't The One, recycle
 
-        if not self.robots.check_cached(ridealong['url'], quiet=True):
-            # do use a slot; fall through so that the fetch will fail robots
-            recycle = False
-            why = 'scheduler cached robots deny'
-            return recycle, why, 0.
+        # if not self.robots.check_cached(ridealong['url'], quiet=True):
+        #     # do use a slot; fall through so that the fetch will fail robots
+        #     recycle = False
+        #     why = 'scheduler cached robots deny'
+        #     return recycle, why, 0.
 
         # when's the next available rate limit slot?
         now = time.time()

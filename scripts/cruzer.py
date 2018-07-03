@@ -37,22 +37,42 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            url = 'httpbin.org/cookies'
-            cookie = {'data':'val','data2':'val2'}
-            req = Req(url)
-            req.set_cookie(cookie)
-            yield Task(name='download',req=req,raw=True,counter=counter)
+            #url = 'http://httpbin.org/cookies'
 
-            if counter > 0:
+            req = Req(url)
+            domain = req.url.hostname_without_www
+            cookie = {'data':domain,'data2':'val2'}
+
+            req.set_cookie(cookie)
+            yield Task(name='download',req=req,raw=True,counter=counter,domain=domain)
+
+            if counter > 40:
                 break
 
     def task_download(self,task):
-        if task.doc.status  == 200:
-            print('--> status good: {0}'.format(task.last_url))
 
-            print(f'--> response: {task.doc.html}')
+
+        if task.doc.status  == 200:
+
+            print('{0}: {1}'.format(task.domain,task.cookie_list()))
+
+            url = task.last_url + '?aaa=aaa'
+            req = Req(url=url)
+
+            yield Task(name='second',req=req,raw=True,domain=task.domain)
+
         else:
-            print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
+            #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
+            pass
+
+
+
+    def task_second(self,task):
+        if task.doc.status  == 200:
+            print('--> 222: {0}: {1}'.format(task.domain,task.cookie_list()))
+        else:
+            #print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
+            pass
 
 
 

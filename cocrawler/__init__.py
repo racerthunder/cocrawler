@@ -12,6 +12,7 @@ import json
 import traceback
 import concurrent
 import functools
+from copy import deepcopy
 
 import sys
 import resource
@@ -47,6 +48,8 @@ from . import geoip
 from . import stats
 from . import timer
 from . import webserver
+
+from . sessions import SessionPool
 
 LOGGER = logging.getLogger(__name__)
 __title__ = 'cocrawler'
@@ -92,6 +95,7 @@ class Crawler:
         self.init_generator = self.task_generator()
         self.init_urls_loaded = False # set to True once all urls from init list are consumed
         self.deffered_queue = asyncio.Queue()
+        self.pool = SessionPool() # keep all runnning sessions if reuse_session==True
 
         try:
             # this works for the installed package
@@ -119,6 +123,11 @@ class Crawler:
             self.conn_kwargs['local_addr'] = (local_addr, 0)
         self.conn_kwargs['family'] = socket.AF_INET  # XXX config option -- this is ipv4 only
 
+        if self.reuse_session:
+            self.conn_kwargs['force_close']=True
+            self.conn_kwargs['enable_cleanup_closed'] = True
+
+
         conn = aiohttp.connector.TCPConnector(**self.conn_kwargs)
         self.connector = conn
 
@@ -131,10 +140,17 @@ class Crawler:
             timeout_kwargs['total'] = page_timeout
         self.timeout = aiohttp.ClientTimeout(**timeout_kwargs)
 
-        self._session = None
+        if self.reuse_session is False:
+
+            cookie_jar = aiohttp.DummyCookieJar()
+
+            _session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+                                              timeout=self.timeout)
+
+            self.pool.global_session=_session
 
         self.datalayer = datalayer.Datalayer()
-        self.robots = robots.Robots(self.robotname, self.session, self.datalayer)
+        self.robots = robots.Robots(self.robotname, 'dummy_session', self.datalayer)
         self.scheduler = scheduler.Scheduler(self.max_workers,self.robots)
 
         self.crawllog = config.read('Logging', 'Crawllog')
@@ -181,27 +197,6 @@ class Crawler:
 
         LOGGER.info('Touch %s to stop the crawler.', self.stop_crawler)
         LOGGER.info('Touch %s to pause the crawler.', self.pause_crawler)
-
-    @property
-    def session(self):
-        '''
-        if we reuse session we create new instance for each task to handle cookie out-of-the-box
-        :return:
-        '''
-        if self.reuse_session:
-            cookie_jar = aiohttp.CookieJar(unsafe=True)
-            __session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
-                                              timeout=self.timeout)
-
-            return __session
-        else:
-            if self._session is None:
-                cookie_jar = aiohttp.DummyCookieJar()
-
-                self._session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
-                                                      timeout=self.timeout)
-
-            return self._session
 
     def __del__(self):
         self.connector.close()
@@ -391,8 +386,10 @@ class Crawler:
             self.frontierlogfd.close()
         if self.scheduler.qsize():
             LOGGER.warning('at exit, non-zero qsize=%d', self.scheduler.qsize())
+
         if self.reuse_session is False:
-            await self.session.close()
+            await self.pool.global_session.close()
+
 
     def _retry_if_able(self, work, ridealong):
         LOGGER.debug('--> retrying work: {0}'.format(work))
@@ -438,7 +435,7 @@ class Crawler:
             if not entry:
                 # fail out, we don't want to do DNS in the robots or page fetch
                 self._retry_if_able(work, ridealong)
-                return
+                return ridealong['task']
             addrs, expires, _, host_geoip = entry
             if not host_geoip:
                 with stats.record_burn('geoip lookup'):
@@ -456,8 +453,9 @@ class Crawler:
                 return
         # ---> end skip section <--
 
+        _session = self.pool.get_session(ridealong['task'].session_id)
 
-        f = await fetcher.fetch(url, self.session, post=ridealong['task'].req.post, max_page_size=self.max_page_size,
+        f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
 
 
@@ -471,12 +469,10 @@ class Crawler:
         if f.last_exception is not None or f.response.status >= 500:
             self._retry_if_able(work, ridealong)
 
-            # if task.raw is True return whatever happens, if False only 200 code matters
-            if ridealong['task'].raw is False:
-                return
-            else:
-                await self.make_callback(ridealong,f)
-                return
+            # an error occured therefore no point in parsing html, make callback now and return
+
+            await self.make_callback(ridealong,f)
+            return ridealong['task']
 
         self.scheduler.del_ridealong(surt)
 
@@ -517,40 +513,71 @@ class Crawler:
         if self.crawllogfd:
             print(json.dumps(json_log, sort_keys=True), file=self.crawllogfd)
 
+
+        return ridealong['task']
+
     async def make_callback(self,ridealong,f):
         partial = functools.partial(self.load_task_function, ridealong, f)
         with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
             try:
-                await self.loop.run_in_executor(None,partial)
+                self.loop.run_in_executor(None,partial)
 
             except ValueError as e:  # if it pukes, ..
                 stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
                 LOGGER.info('parser raised %r', e)
 
+            except Exception as ex:
+                traceback.print_exc()
+
+
+    def fill_task(self,task,fr):
+        task.doc.fetcher = fr
+        task.doc.status = fr.response.status if fr.response else fr.last_exception
+        task.last_url = str(fr.response.url) if fr.response else None
+
+        return task
 
     def load_task_function(self,ridealong,fr):
-        task_name = 'task_{0}'.format(ridealong['task'].name)
-        task_func = getattr(self,task_name,None)
+            parent_task = self.fill_task(ridealong['task'],fr)
 
-        if task_func is None:
-            raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
+            task_name = 'task_{0}'.format(parent_task.name)
+            task_func = getattr(self,task_name,None)
 
-        # yeild from function
-        ridealong['task'].doc.fetcher = fr
-        ridealong['task'].doc.status = fr.response.status if fr.response else fr.last_exception
-        ridealong['task'].last_url = fr.response.url if fr.response else None
+            if task_func is None:
+                raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
 
-        task_generator = task_func(ridealong['task'])
 
-        while True:
-            try:
-                task = next(task_generator)
-                ride_along = self.get_ridealong(task)
-                self.add_deffered_task(3,ride_along)
-            except (StopIteration,TypeError):
-                # TypeError is raised when task returns nothing
-                LOGGER.debug('--> No task left in: {0}'.format(task_name))
-                break
+            # yeild from function
+            task_generator = task_func(parent_task)
+
+
+            if self.reuse_session:
+                self.pool.add_finished_task(parent_task.session_id,parent_task.name)
+
+            while True:
+                try:
+                    task = next(task_generator)
+                    ride_along = self.get_ridealong(task,parent_task=parent_task)
+                    LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
+                    self.add_deffered_task(0,ride_along)
+
+                except (StopIteration):
+                    break
+
+                except TypeError as ex:
+                    err = traceback.format_exc()
+                    # TypeError is raised when task returns nothing, try to catch this specific error
+                    # be carefull here since others could drop down here as well
+                    if 'object is not an iterator' in err:
+                        LOGGER.debug('--> No task left in: {0}'.format(task_name))
+                    else:
+                        traceback.print_exc()
+                    break
+
+                except Exception as ex:
+                    traceback.print_exc()
+                    break
+
 
 
     async def work(self):
@@ -565,7 +592,8 @@ class Crawler:
 
                 try:
 
-                    await self.fetch_and_process(work)
+                    task = await self.fetch_and_process(work)
+
                 except concurrent.futures._base.CancelledError:  # seen with ^C
                     pass
                 # ValueError('no A records found') should not be a mystery
@@ -671,23 +699,43 @@ class Crawler:
             self.datalayer.load(f)
             stats.load(f)
 
-    def minute(self):
+    async def minute(self):
         '''
-        print interesting stuff, once a minute
+        print interesting stuff, once a minute + close all finished sessions
         '''
         if time.time() > self.next_minute:
             self.next_minute = time.time() + 60
             stats.stats_set('DNS cache size', self.resolver.size())
             stats.report()
             stats.coroutine_report()
+            await self.pool.close_or_wait()
+
 
     def update_cpu_stats(self):
         elapsedc = time.clock()  # should be since process start
         stats.stats_set('main thread cpu time', elapsedc)
 
-    def get_ridealong(self,task):
-        #overwrite this method to customoze ridealong
+    def get_ridealong(self,task,parent_task=None):
         # url = Url instance
+
+        if parent_task is not None:
+            # parent_task exists only in deffered queue
+            task.add_parent(parent_task)
+            task.set_session_id(parent_task.session_id)
+
+        else:
+            # it's a init_generator, create new session and put it into the pool
+            if self.reuse_session:
+                _id = self.create_session(url=task.req.url.url)
+                task.set_session_id(_id)
+
+        if self.reuse_session:
+            # do no track single session mode since ID for session = None (same for all requests)
+            self.pool.add_submited_task(task.session_id,task.name)
+
+        # add ref to cruzer instance so we have access to sessions pool
+        task.cruzer = self
+
         ride_along = {'url': task.req.url,'task':task,'skip_seen_url':True}
         return ride_along
 
@@ -695,9 +743,27 @@ class Crawler:
         yield ':)'
 
     def add_deffered_task(self,priority, ridealong):
-        #priority =  heigher number = higher priority
+        #priority =  lower number = higher priority
         # add urls from redirects detection and from cruzer callback functions
         self.deffered_queue.put_nowait((priority,ridealong))
+
+    def create_session(self,**kwargs):
+        '''
+        create new session instance and add it to the pool
+        connector_owner=False is important here, it creates a subclass of connector for each client
+        session, with = True common connector is used and call to "close" method will result for all
+        open connection to stall with "connection is closed" error
+
+        :return: session id
+        '''
+        cookie_jar = aiohttp.CookieJar(unsafe=True)
+        __session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+                                          timeout=self.timeout,connector_owner=False)
+        _id = id(__session)
+
+        self.pool.add_session(_id,__session,**kwargs)
+
+        return _id
 
     async def deffered_queue_processor(self):
         while True:
@@ -789,7 +855,10 @@ class Crawler:
                 break
 
             self.update_cpu_stats()
-            self.minute()
+            # show stats and close finished sessions
+            await self.minute()
+
+        #await self.pool.close_all()
 
         self.cancel_workers()
         self.producer.cancel()

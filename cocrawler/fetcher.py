@@ -63,7 +63,7 @@ FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'req_
                                                  'last_exception'])
 
 
-async def fetch(url, session,post=None, headers=None, proxy=None, mock_url=None,
+async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
                 allow_redirects=None, max_redirects=None,
                 stats_prefix='', max_page_size=-1):
 
@@ -91,12 +91,15 @@ async def fetch(url, session,post=None, headers=None, proxy=None, mock_url=None,
         with stats.coroutine_state(stats_prefix+'fetcher fetching'):
             with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
 
-                if post is not None:
+                if req.cookies is not None:
+                    session.cookie_jar.update_cookies(req.cookies)
+
+                if req.post is not None:
 
                     response = await session.post(mock_url or url.url,
                                              allow_redirects=allow_redirects,
                                              max_redirects=max_redirects,
-                                             headers=headers,data=post)
+                                             headers=headers,data=req.post)
 
                 else:
                     response = await session.get(mock_url or url.url,
@@ -168,6 +171,7 @@ async def fetch(url, session,post=None, headers=None, proxy=None, mock_url=None,
     except AttributeError as e:
         stats.stats_sum('fetch other error - AttributeError', 1)
         last_exception = repr(e)
+
     except RuntimeError as e:
         stats.stats_sum('fetch other error - RuntimeError', 1)
         last_exception = repr(e)
@@ -180,7 +184,7 @@ async def fetch(url, session,post=None, headers=None, proxy=None, mock_url=None,
         traceback.print_exc()
 
     if last_exception:
-        LOGGER.info('we failed working on %s, the last exception is %s', mock_url or url.url, last_exception)
+        LOGGER.info('we failed working on %s, the last exception is %s, session_id= %s', mock_url or url.url, last_exception,id(session))
         return FetcherResponse(None, None, None, None, None, False, last_exception)
 
     fr = FetcherResponse(response, body_bytes, response.request_info.headers,
