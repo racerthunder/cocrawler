@@ -9,18 +9,12 @@ parent subsequently calls add_url on them -- cocrawler.cocrawler
 '''
 
 import logging
-import cgi
 from functools import partial
 import json
 import codecs
 import traceback
 
 import multidict
-
-try:
-    import cchardet as chardet
-except ImportError:  # pragma: no cover
-    import chardet
 
 from . import urls
 from . import parse
@@ -29,6 +23,7 @@ from . import config
 from . import seeds
 from . import facet
 from . import geoip
+from . import content
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,47 +31,6 @@ LOGGER = logging.getLogger(__name__)
 # aiohttp.ClientReponse lacks this method, so...
 def is_redirect(response):
     return 'Location' in response.headers and response.status in (301, 302, 303, 307, 308)
-
-
-# because we're using the streaming interface we can't call resp.get_encoding()
-# this is the same algo as aiohttp
-def my_get_encoding(charset, body_bytes):
-    detect = chardet.detect(body_bytes)
-    if detect['encoding']:
-        detect['encoding'] = detect['encoding'].lower()
-    if detect['confidence']:
-        detect['confidence'] = '{:.2f}'.format(detect['confidence'])
-
-    for encoding in (charset, detect['encoding'], 'utf-8'):
-        if encoding:
-            try:
-                codecs.lookup(encoding)
-                break
-            except LookupError:
-                pass
-    else:
-        encoding = None
-
-    return encoding, detect
-
-
-def my_decode(body_bytes, encoding, detect):
-    for charset in encoding, detect['encoding']:
-        if not charset:
-            # encoding or detect may be None
-            continue
-        try:
-            body = body_bytes.decode(encoding=charset)
-            break
-        except UnicodeDecodeError:
-            # if we truncated the body, we could have caused the error:
-            # UnicodeDecodeError: 'utf-8' codec can't decode byte 0xd9 in position 15: unexpected end of data
-            # or encoding could be wrong, or the page could be defective
-            pass
-    else:
-        body = body_bytes.decode(encoding='utf-8', errors='replace')
-        charset = 'utf-8 replace'
-    return body, charset
 
 
 def charset_log(json_log, charset, detect, charset_used):
@@ -223,42 +177,33 @@ async def post_200(f, url, priority, host_geoip, seed_host, json_log, crawler):
 
     if crawler.warcwriter is not None:  # needs to use the same algo as post_dns for choosing what to warc
         # XXX insert the digest we already computed, instead of computing it again?
+        # we delayed decompression so that we could warc the compressed body
         crawler.warcwriter.write_request_response_pair(url.url, f.req_headers,
                                                        f.response.raw_headers, f.is_truncated, f.body_bytes)
 
     resp_headers = f.response.headers
-    content_type = resp_headers.get('content-type', '')
-    # sometimes content_type comes back multiline. whack it with a wrench.
-    content_type = content_type.replace('\r', '\n').partition('\n')[0]
-    content_type, options = cgi.parse_header(content_type)
-
-    json_log['content_type'] = content_type
-    stats.stats_sum('content-type=' + content_type, 1)
-    if 'charset' in options:
-        charset = options['charset'].lower()
-        json_log['content_type_charset'] = charset
-        stats.stats_sum('content-type-charset=' + charset, 1)
-    else:
-        charset = None
-        stats.stats_sum('content-type-charset=' + 'not specified', 1)
+    content_type, content_encoding, charset = content.parse_headers(resp_headers, json_log)
 
     html_types = set(('text/html', '', 'application/xml+html','application/json'))
     if content_type in html_types:
-        with stats.record_burn('response body get_encoding', url=url):
-            encoding, detect = my_get_encoding(charset, f.body_bytes)
+        if content_encoding != 'identity':
+            with stats.record_burn('response body decompress', url=url):
+                body_bytes = content.decompress(f.body_bytes, content_encoding)
+        else:
+            body_bytes = f.body_bytes
+
+        with stats.record_burn('response body get_charset', url=url):
+            charset, detect = content.my_get_charset(charset, body_bytes)
         with stats.record_burn('response body decode', url=url):
-            body, charset_used = my_decode(f.body_bytes, encoding, detect)
+            body, charset_used = content.my_decode(body_bytes, charset, detect)
 
         charset_log(json_log, charset, detect, charset_used)
+
 
         return body, charset_used
 
     else:
         return None,None
-
-
-
-
 def post_dns(dns, expires, url, crawler):
     if crawler.warcwriter is not None:  # needs to use the same algo as post_200 for choosing what to warc
         crawler.warcwriter.write_dns(dns, expires, url)
