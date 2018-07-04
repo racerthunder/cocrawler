@@ -21,7 +21,7 @@ for file_name in files:
 
 
 async def resolve(ns):
-    host = 'google.com'
+    host = 'tradingview.com'
     dns.setup_resolver([ns])
     try:
         result = await dns.query(host, 'A')
@@ -41,6 +41,7 @@ async def main():
     for t in asyncio.as_completed(tasks):
         ns,res = await t
         if res:
+            print((res[0].host))
             good.append(ns)
         else:
             bad.append(ns)
