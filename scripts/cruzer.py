@@ -46,7 +46,7 @@ class Cruzer(cocrawler.Crawler):
             req.set_cookie(cookie)
             yield Task(name='download',req=req,raw=True,counter=counter,domain=domain)
 
-            if counter > 40:
+            if counter > 0:
                 break
 
     def task_download(self,task):

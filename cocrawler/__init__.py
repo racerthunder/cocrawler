@@ -145,7 +145,7 @@ class Crawler:
             cookie_jar = aiohttp.DummyCookieJar()
 
             _session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
-                                              timeout=self.timeout)
+                                             auto_decompress=False,timeout=self.timeout)
 
             self.pool.global_session=_session
 
@@ -758,7 +758,7 @@ class Crawler:
         '''
         cookie_jar = aiohttp.CookieJar(unsafe=True)
         __session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
-                                          timeout=self.timeout,connector_owner=False)
+                                          timeout=self.timeout,auto_decompress=False,connector_owner=False)
         _id = id(__session)
 
         self.pool.add_session(_id,__session,**kwargs)
