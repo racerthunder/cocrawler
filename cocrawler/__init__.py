@@ -75,7 +75,7 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
 
 
 class Crawler:
-    def __init__(self, reuse_session=True,load=None, no_test=False, paused=False):
+    def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = reuse_session
@@ -459,7 +459,7 @@ class Crawler:
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
 
 
-        json_log = {'kind': 'get', 'url': url.url, 'priority': priority,
+        json_log = {'kind': ridealong['task'].req.method, 'url': url.url, 'priority': priority,
                     't_first_byte': f.t_first_byte, 'time': time.time()}
         if seed_host:
             json_log['seed_host'] = seed_host
@@ -708,7 +708,8 @@ class Crawler:
             stats.stats_set('DNS cache size', self.resolver.size())
             stats.report()
             stats.coroutine_report()
-            await self.pool.close_or_wait()
+            if self.reuse_session:
+                await self.pool.close_or_wait()
 
 
     def update_cpu_stats(self):
