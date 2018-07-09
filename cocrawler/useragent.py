@@ -34,6 +34,9 @@ phone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_3 like Mac OS X) AppleWebKit/605.
 
 
 def useragent(version):
+    ua = config.read('UserAgent')['UA']
+    return (ua,ua)
+
     uac = config.read('UserAgent')
 
     basic = '{}-cocrawler/{} (+{})'.format(uac['MyPrefix'], version, uac['URL'])

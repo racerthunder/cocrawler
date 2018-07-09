@@ -12,7 +12,7 @@ import json
 import traceback
 import concurrent
 import functools
-from copy import deepcopy
+import argparse
 
 import sys
 import resource
@@ -852,14 +852,17 @@ class Crawler:
                 # this is a little racy with how awaiting work is set and the queue is read
                 # while we're in this join we aren't looking for STOPCRAWLER etc
                 LOGGER.warning('all workers appear idle, queue appears empty, executing join')
-                await self.scheduler.close()
+                if not self.deffered_queue.empty():
+                    LOGGER.warning('--> queue is about to join, but we still have things in deffered queue, waiting')
+                    await asyncio.sleep(1)
+                else:
+                    await self.scheduler.close()
                 break
 
             self.update_cpu_stats()
             # show stats and close finished sessions
             await self.minute()
 
-        #await self.pool.close_all()
 
         self.cancel_workers()
         self.producer.cancel()
@@ -893,12 +896,21 @@ class Crawler:
 
 
     @classmethod
-    def run(cls,ARGS):
+    def run(cls):
 
         '''
         Main program: parse args, read config, set up event loop, run the crawler.
         '''
 
+        ARGS = argparse.ArgumentParser(description='Cruzer web crawler')
+
+        ARGS.add_argument('--loglevel', action='store', default='DEBUG')
+        ARGS.add_argument('--config', action='append')
+        ARGS.add_argument('--configfile', action='store')
+        ARGS.add_argument('--no-confighome', action='store_true')
+        ARGS.add_argument('--no-test', action='store_true')
+        ARGS.add_argument('--printdefault', action='store_true')
+        ARGS.add_argument('--load', action='store',help='load previous state of the parser')
 
         args = ARGS.parse_args()
 

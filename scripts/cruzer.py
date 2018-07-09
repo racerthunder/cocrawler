@@ -25,7 +25,7 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            #url = 'http://httpbin.org/cookies'
+            #url = 'https://www.whoishostingthis.com/tools/user-agent/'
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -42,12 +42,8 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
 
-            print('{0}: {1}'.format(task.domain,task.cookie_list()))
-
-            url = task.last_url + '?aaa=aaa'
-            req = Req(url=url)
-
-            yield Task(name='second',req=req,raw=True,domain=task.domain)
+            print(f'--> good: {task.last_url}')
+            #yield Task(name='second',req=req,raw=True,domain=task.domain)
 
         else:
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
