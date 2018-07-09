@@ -13,8 +13,7 @@ class Document():
 
     def parse(self,html=None):
         """
-        parse html to etree on demand, we do not do this on initialization since it could be delegated
-        to burner
+        optionaly parse html to etree on demand, to delegate work to burner
         :param html:
         :return:
         """
@@ -31,7 +30,7 @@ class Document():
 
     def select(self, *args, **kwargs):
         if self.etree is None:
-            raise ValueError('--> Run doc.parse() first')
+            self.parse()
         return XpathSelector(self._etree).select(*args, **kwargs)
 
 
