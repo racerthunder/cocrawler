@@ -12,7 +12,7 @@ import urllib.parse
 import hashlib
 import re
 
-import robotexclusionrulesparser
+import reppy.robots
 import magic
 
 from .urls import URL
@@ -20,6 +20,7 @@ from . import stats
 from . import fetcher
 from . import config
 from . import post_fetch
+from . import content
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,47 +34,22 @@ def strip_bom(b):
         return b
 
 
-def preprocess_robots(text, robotname, json_log):
-    '''
-    robotsexclusionrulesparser does not follow the de-facto robots.txt standard.
-    1) blank lines should not reset user-agent to *
-    2) user agent names should not regex or substring
-        (e.g. crawler foo-bar should not match a rule for user-agent '-')
-    3) longest match
-    This code preprocesses robots.txt to mitigate (1), and does clever things to fix (2)
-
-    TODO: Mitigate (3)
-    TODO: wrap robotsexclusionrulesparser in another class?
-
-    Note: Python's built-in urllib.robotparser definitely breaks (1)
-    '''
-    robots = ''
-    line_count = 0
-    for line in text.splitlines():
-        if '#' in line:
-            line = line.split('#', 1)[0]
-        line = line.strip()
-        if len(line):
-            line_count += 1
-            robots += line + '\n'
-
-    user_agents = re.findall(r'\s* User-Agent: \s* (.*)', robots, re.X | re.I)
-    action_lines = len(re.findall(r'(allow|disallow|crawl-delay)', robots, re.X | re.I))
+def robots_facets(text, robotname, json_log):
+    user_agents = re.findall(r'^ \s* User-Agent: \s* (.*) \s* (?:\#.*)?', text, re.X | re.I | re.M)
+    action_lines = len(re.findall(r'^ \s* (allow|disallow|crawl-delay):', text, re.X | re.I | re.M))
 
     user_agents = list(set([u.lower() for u in user_agents]))
 
     mentions_us = robotname.lower() in user_agents
+
     if mentions_us:
         json_log['mentions-us'] = True
-
     if user_agents:
         json_log['user-agents'] = len(user_agents)
     if action_lines:
         json_log['action-lines'] = action_lines
     if text:
         json_log['size'] = len(text)
-
-    return robots, mentions_us
 
 
 def is_plausible_robots(body_bytes):
@@ -115,26 +91,26 @@ class Robots:
         schemenetloc = url.urlsplit.scheme + '://' + url.urlsplit.netloc
 
         try:
-            robots, mentions_us = self.datalayer.read_robots_cache(schemenetloc)
+            robots = self.datalayer.read_robots_cache(schemenetloc)
             stats.stats_sum('robots cache hit', 1)
         except KeyError:
             stats.stats_sum('robots cached_only miss', 1)
             return True
-        return self._check(url, schemenetloc, robots, mentions_us, quiet=quiet)
+        return self._check(url, schemenetloc, robots, quiet=quiet)
 
     async def check(self, url, host_geoip=None, seed_host=None, crawler=None,
                     headers=None, proxy=None, mock_robots=None):
         schemenetloc = url.urlsplit.scheme + '://' + url.urlsplit.netloc
 
         try:
-            robots, mentions_us = self.datalayer.read_robots_cache(schemenetloc)
+            robots = self.datalayer.read_robots_cache(schemenetloc)
             stats.stats_sum('robots cache hit', 1)
         except KeyError:
-            robots, mentions_us = await self.fetch_robots(schemenetloc, mock_robots, host_geoip, seed_host, crawler,
+            robots = await self.fetch_robots(schemenetloc, mock_robots, host_geoip, seed_host, crawler,
                                                           headers=headers, proxy=proxy)
-        return self._check(url, schemenetloc, robots, mentions_us)
+        return self._check(url, schemenetloc, robots)
 
-    def _check(self, url, schemenetloc, robots, mentions_us, quiet=False):
+    def _check(self, url, schemenetloc, robots, quiet=False):
         if url.urlsplit.path:
             pathplus = url.urlsplit.path
         else:
@@ -153,15 +129,13 @@ class Robots:
             return False
 
         me = self.robotname
-        if not mentions_us:
-            me = '*'  # works around bug in robotsexclusionparser
 
         with stats.record_burn('robots is_allowed', url=schemenetloc):
-            check = robots.is_allowed(me, pathplus)
+            check = robots.allowed(pathplus, me)
             if not check:
-                google_check = robots.is_allowed('googlebot', pathplus)
+                google_check = robots.allowed(pathplus, 'googlebot')
                 if me != '*':
-                    generic_check = robots.is_allowed('*', pathplus)
+                    generic_check = robots.allowed(pathplus, '*')
                 else:
                     generic_check = None
 
@@ -191,13 +165,12 @@ class Robots:
         return False
 
     def _cache_empty_robots(self, schemenetloc, final_schemenetloc):
-        parsed = robotexclusionrulesparser.RobotExclusionRulesParser()
-        parsed.parse('')
-        self.datalayer.cache_robots(schemenetloc, (parsed, False))
+        parsed = reppy.robots.Robots.parse('', '')
+        self.datalayer.cache_robots(schemenetloc, parsed)
         if final_schemenetloc:
-            self.datalayer.cache_robots(final_schemenetloc, (parsed, False))
+            self.datalayer.cache_robots(final_schemenetloc, parsed)
         self.in_progress.discard(schemenetloc)
-        return parsed, False
+        return parsed
 
     async def fetch_robots(self, schemenetloc, mock_url, host_geoip, seed_host, crawler, headers=None, proxy=None):
         '''
@@ -225,17 +198,17 @@ class Robots:
 
             # at this point robots might be in the cache... or not.
             try:
-                (robots, mentions_us) = self.datalayer.read_robots_cache(schemenetloc)
+                robots = self.datalayer.read_robots_cache(schemenetloc)
             except KeyError:
                 robots = None
             if robots is not None:
-                return robots, mentions_us
+                return robots
 
             # ok, so it's not in the cache -- and the other guy's fetch failed.
             # if we just fell through, there would be a big race.
             # treat this as a "no data" failure.
             LOGGER.debug('some other fetch of robots has failed.')  # XXX make this a stat
-            return None, False
+            return None
 
         self.in_progress.add(schemenetloc)
 
@@ -249,7 +222,7 @@ class Robots:
             json_log['error'] = 'max tries exceeded, final exception is: ' + f.last_exception
             self.jsonlog(schemenetloc, json_log)
             self.in_progress.discard(schemenetloc)
-            return None, False
+            return None
 
         if f.response.history:
             redir_history = [str(h.url) for h in f.response.history]
@@ -288,7 +261,7 @@ class Robots:
             json_log['error'] = 'got a 5xx, treating as deny'
             self.jsonlog(schemenetloc, json_log)
             self.in_progress.discard(schemenetloc)
-            return None, False
+            return None
 
         # we got a 2xx, so let's use the final headers to facet the final server
         if final_schemenetloc:
@@ -302,6 +275,9 @@ class Robots:
         post_fetch.post_robots_txt(f, robots_url, host_geoip, json_log['time'], crawler, seed_host=seed_host)
 
         body_bytes = f.body_bytes
+        content_encoding = f.response.headers.get('content-encoding', 'identity')
+        if content_encoding != 'identity':
+            body_bytes = content.decompress(f.body_bytes, content_encoding)
 
         with stats.record_burn('robots sha1'):
             sha1 = 'sha1:' + hashlib.sha1(body_bytes).hexdigest()
@@ -328,32 +304,32 @@ class Robots:
             json_log['error'] = 'robots body decode threw a surprising exception: ' + repr(e)
             self.jsonlog(schemenetloc, json_log)
             self.in_progress.discard(schemenetloc)
-            return None, False
+            return None
 
-        preprocessed, mentions_us = preprocess_robots(body, self.robotname, json_log)
+        robots_facets(body, self.robotname, json_log)
 
         with stats.record_burn('robots parse', url=schemenetloc):
-            robots = robotexclusionrulesparser.RobotExclusionRulesParser()
-            robots.parse(preprocessed)
+            robots = reppy.robots.Robots.parse('', body)
 
         with stats.record_burn('robots is_allowed', url=schemenetloc):
-            check = robots.is_allowed('*', '/')
+            check = robots.allowed('/', '*')
             if not check:
                 json_log['generic-deny-slash'] = True
-                check = robots.is_allowed('googlebot', '/')
+                check = robots.allowed('/', 'googlebot')
                 json_log['google-deny-slash'] = not check
 
-        self.datalayer.cache_robots(schemenetloc, (robots, mentions_us))
+        self.datalayer.cache_robots(schemenetloc, robots)
         self.in_progress.discard(schemenetloc)
         if final_schemenetloc:
-            self.datalayer.cache_robots(final_schemenetloc, (robots, mentions_us))
+            self.datalayer.cache_robots(final_schemenetloc, robots)
             # we did not set this but we'll discard it anyway
             self.in_progress.discard(final_schemenetloc)
-        if robots.sitemaps:
-            json_log['has-sitemaps'] = len(robots.sitemaps)
+        sitemaps = list(robots.sitemaps)
+        if sitemaps:
+            json_log['has-sitemaps'] = len(sitemaps)
 
         self.jsonlog(schemenetloc, json_log)
-        return robots, mentions_us
+        return robots
 
     def jsonlog(self, schemenetloc, json_log):
         if self.robotslogfd:

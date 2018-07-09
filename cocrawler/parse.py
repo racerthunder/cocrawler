@@ -54,7 +54,7 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
 
     # This embodies a minimal parsing policy; it needs to be made pluggable/configurable
     #  split head/body
-    #  soup the head so we can accurately get base and facets
+    #  soup the head so we can accurately get base and other details
     #  regex the body for links and embeds, for speed
 
     with stats.record_burn(burn_prefix+'split_head_body', url=url):
@@ -87,6 +87,8 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
         links.update(lbody)
         embeds.update(ebody)
 
+    embeds = clean_urllist(embeds, ('javascript:', 'data:'))
+
     with stats.record_burn(burn_prefix+'url_clean_join', url=url):
         links = url_clean_join(links, url=base_or_url)
         embeds = url_clean_join(embeds, url=base_or_url)
@@ -100,6 +102,15 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
         facets = facet.compute_all(html, head, body, headers, links, embeds, head_soup=head_soup, url=url)
 
     return links, embeds, sha1, facets
+
+
+def clean_urllist(urllist, schemes):
+    '''
+    Drop all elemnts of the urllist that aren't in schemes.
+    Used to drop javascript: and data: and whatnot from the list of embeds.
+    '''
+    schemes = tuple(schemes)
+    return [url for url in urllist if not url.startswith(schemes)]
 
 
 def find_html_links_re(html):
