@@ -37,7 +37,7 @@ REST: {}
 Crawl:
   MaxDepth: 3
   MaxTries: 4
-  PageTimeout: 30
+  PageTimeout: 5
   RetryTimeout: 5
   MaxWorkers: 10
   MaxHostQPS: 10
@@ -50,10 +50,10 @@ Crawl:
 #  HostBudget: None
 
 UserAgent:
-  Style: laptopplus
-  MyPrefix: test
-  URL: http://cocrawler.com/cocrawler.html
-
+  Style: crawler
+  MyPrefix: test-deep
+  URL: http://example.com/cocrawler.html
+  UA: Googlebot/2.1 (+http://www.google.com/bot.html)
 Robots:
   MaxTries: 4
   RobotsCacheSize: 1000
@@ -62,8 +62,8 @@ Robots:
 
 Fetcher:
   Nameservers:
-  - 8.8.8.8
-  - 8.8.4.4
+   File:
+   - dns.txt
   NameserverTries: 10
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
@@ -81,8 +81,9 @@ Plugins:
   url_allowed: AllDomains
 
 Multiprocess:
-  BurnerThreads: 8
-  ParseInBurnerSize: 20000
+  ParseInBurnerSize: 1
+  BurnerThreads: 2
+#  ParseInBurnerSize: 20000
 #  Affinity: yes
 
 Save:
