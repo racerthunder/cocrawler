@@ -508,6 +508,10 @@ class Crawler:
 
         stats.stats_set('queue size', self.scheduler.qsize())
         stats.stats_max('max queue size', self.scheduler.qsize())
+
+        stats.stats_set('deffered queue size', self.deffered_queue.qsize())
+        stats.stats_max('max deffered queue size', self.deffered_queue.qsize())
+
         stats.stats_set('ridealong size', self.scheduler.ridealong_size())
 
         if self.crawllogfd:
@@ -905,6 +909,7 @@ class Crawler:
         ARGS = argparse.ArgumentParser(description='Cruzer web crawler')
 
         ARGS.add_argument('--loglevel', action='store', default='DEBUG')
+        ARGS.add_argument('--reuse_session',action='store_true')
         ARGS.add_argument('--config', action='append')
         ARGS.add_argument('--configfile', action='store')
         ARGS.add_argument('--no-confighome', action='store_true')
@@ -942,6 +947,9 @@ class Crawler:
             kwargs['load'] = args.load
         if args.no_test:
             kwargs['no_test'] = True
+        if args.reuse_session:
+            kwargs['reuse_session'] = True
+
 
         cruzer = cls(**kwargs)
 

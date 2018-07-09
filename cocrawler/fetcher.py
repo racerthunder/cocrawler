@@ -95,6 +95,10 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
             with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
 
                 if req.cookies is not None:
+
+                    if isinstance(session.cookie_jar,aiohttp.DummyCookieJar):
+                        raise ValueError('--> Trying to set cookie but cookiejar is dummy, enable --reuse_session for cruzer!')
+
                     session.cookie_jar.update_cookies(req.cookies)
 
                 if req.post is not None:

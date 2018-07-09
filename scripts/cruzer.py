@@ -4,7 +4,6 @@
 Cruzer crawler
 '''
 import pathlib
-import argparse
 import cocrawler
 from cocrawler.task import Task, Req
 
@@ -31,7 +30,7 @@ class Cruzer(cocrawler.Crawler):
             domain = req.url.hostname_without_www
             cookie = {'data':domain,'data2':'val2'}
 
-            req.set_cookie(cookie)
+            #req.set_cookie(cookie)
             yield Task(name='download',req=req,raw=True,counter=counter,domain=domain)
 
             if counter > 0:
@@ -42,7 +41,7 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
 
-            print(f'--> good: {task.last_url}')
+            print('-->: {0}: {1}'.format(task.domain,task.cookie_list()))
             #yield Task(name='second',req=req,raw=True,domain=task.domain)
 
         else:

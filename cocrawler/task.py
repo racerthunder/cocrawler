@@ -1,3 +1,5 @@
+import aiohttp
+
 from .urls import URL
 from .document import Document
 from .cookie import CookieManager
@@ -65,5 +67,8 @@ class Task():
             raise ValueError('--> Cruzer instance is missing')
         else:
             session = self.cruzer.pool.get_session(self.session_id)
+
+            if isinstance(session.cookie_jar,aiohttp.DummyCookieJar):
+                raise ValueError('--> Trying to get cookie but cookiejar is dummy, enable --reuse_session for cruzer!')
 
             return dict([(cok._key,cok._value) for cok in session.cookie_jar])
