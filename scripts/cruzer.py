@@ -10,18 +10,6 @@ from cocrawler.task import Task, Req
 
 
 
-ARGS = argparse.ArgumentParser(description='CoCrawler web crawler')
-ARGS.add_argument('--config', action='append')
-ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Coding/PYTHON/cocrawler/configs/main.yml')
-ARGS.add_argument('--no-confighome', action='store_true')
-ARGS.add_argument('--no-test', action='store_true')
-ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--loglevel', action='store', default='DEBUG')
-ARGS.add_argument('--load', action='store')
-
-
-
-
 def dispatcher():
 
     path = pathlib.Path(__file__).parent.parent / 'data' / 'top-1k.txt'
@@ -75,5 +63,8 @@ class Cruzer(cocrawler.Crawler):
             pass
 
 
-
-Cruzer.run(ARGS)
+if __name__ == '__main__':
+    '''
+    command line args example: --config Crawl.MaxWorkers:100
+    '''
+    Cruzer.run()
