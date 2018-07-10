@@ -302,11 +302,13 @@ class Crawler:
                 seeds.seed_from_redir(url)
 
         # XXX allow/deny plugin modules go here
-        if not self.robots.check_cached(url):
-            reason = 'rejected by cached robots'
-            stats.stats_sum('add_url '+reason, 1)
-            self.log_rejected_add_url(url, reason)
-            return
+        if self.mode !='cruzer':
+            if not self.robots.check_cached(url):
+                reason = 'rejected by cached robots'
+                stats.stats_sum('add_url '+reason, 1)
+                self.log_rejected_add_url(url, reason)
+                return
+        # --> end skip section
 
         reason = None
 
@@ -710,6 +712,8 @@ class Crawler:
         if time.time() > self.next_minute:
             self.next_minute = time.time() + 60
             stats.stats_set('DNS cache size', self.resolver.size())
+            if self.reuse_session:
+                stats.stats_set('Sessions Pool size',self.pool.size())
             stats.report()
             stats.coroutine_report()
             if self.reuse_session:
@@ -858,7 +862,7 @@ class Crawler:
                 LOGGER.warning('all workers appear idle, queue appears empty, executing join')
                 if not self.deffered_queue.empty():
                     LOGGER.warning('--> queue is about to join, but we still have things in deffered queue, waiting')
-                    await asyncio.sleep(1)
+                    await self.deffered_queue.join()
                 else:
                     await self.scheduler.close()
                 break

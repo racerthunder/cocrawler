@@ -102,7 +102,7 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
     location = resp_headers.get('location')
     if location is None:
         seeds.fail(ridealong, crawler)
-        LOGGER.info('%d redirect for %s has no Location: header', f.response.status, url.url)
+        LOGGER.debug('%d redirect for %s has no Location: header', f.response.status, url.url)
         raise ValueError(url.url + ' sent a redirect with no Location: header')
     next_url = urls.URL(location, urljoin=url)
 
@@ -127,12 +127,12 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
     if redir_kind is None:
         if samesurt:
-            LOGGER.info('Whoops, %s is samesurt but not a special_redirect: %s to %s, location %s',
+            LOGGER.debug('Whoops, %s is samesurt but not a special_redirect: %s to %s, location %s',
                         prefix, url.url, next_url.url, location)
     elif redir_kind == 'same':
-        LOGGER.info('attempted redirect to myself: %s to %s, location was %s', url.url, next_url.url, location)
+        LOGGER.debug('attempted redirect to myself: %s to %s, location was %s', url.url, next_url.url, location)
         if 'Set-Cookie' not in resp_headers:
-            LOGGER.info(prefix+' to myself and had no cookies.')
+            LOGGER.debug(prefix+' to myself and had no cookies.')
             stats.stats_sum(prefix+' same with set-cookie', 1)
         else:
             stats.stats_sum(prefix+' same without set-cookie', 1)

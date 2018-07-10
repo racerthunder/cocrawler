@@ -191,7 +191,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
         traceback.print_exc()
 
     if last_exception:
-        LOGGER.info('we failed working on %s, the last exception is %s, session_id= %s', mock_url or url.url, last_exception,id(session))
+        LOGGER.debug('we failed working on %s, the last exception is %s, session_id= %s', mock_url or url.url, last_exception,id(session))
         return FetcherResponse(None, None, None, None, None, False, last_exception)
 
     fr = FetcherResponse(response, body_bytes, response.request_info.headers,

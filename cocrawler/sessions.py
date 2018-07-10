@@ -13,6 +13,9 @@ class SessionPool():
         self._global_session = None # this session is used when reuse_session is Fals
 
 
+    def size(self):
+        return len(self._pool)
+
     def _glob_getter(self):
         if self._global_session is None:
             raise ValueError('--> Global session is not set')
