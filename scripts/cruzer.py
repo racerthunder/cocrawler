@@ -4,38 +4,22 @@
 Cruzer crawler
 '''
 import pathlib
-from tqdm import tqdm
+
 
 import cocrawler
 from cocrawler.task import Task, Req
+from cocrawler.counter import CounterBar
 
-
-class CounterBar():
-    def __init__(self,ls,mininterval=0.1):
-        """
-
-        :param ls:
-        :param mininterval: in seconds
-        """
-        if isinstance(ls,list):
-            self.ls_max = len(ls)
-        if isinstance(ls,int):
-            self.ls_max = ls
-
-        self.current = 0
-        self.pbar = tqdm(total=self.ls_max,leave=False,mininterval=mininterval)
-
-    def count(self):
-        self.pbar.update(1)
+counter = CounterBar()
 
 def dispatcher():
 
     path = pathlib.Path(__file__).parent.parent / 'data' / 'top-1k.txt'
     urls = [line.strip() for line in path.open()]
-    counter = CounterBar(len(urls))
+
+    counter.init(len(urls))
 
     for url in urls:
-        counter.count()
         yield 'http://{0}'.format(url)
         #break
 
@@ -53,13 +37,14 @@ class Cruzer(cocrawler.Crawler):
             cookie = {'data':domain,'data2':'val2'}
 
             #req.set_cookie(cookie)
-            yield Task(name='download',req=req,raw=True,counter=counter,domain=domain)
+            yield Task(name='download',req=req,counter=counter,domain=domain)
 
             if counter > 500:
                 break
 
     def task_download(self,task):
 
+        counter.count()
 
         if task.doc.status  == 200:
 

@@ -71,7 +71,7 @@ class SessionPool():
         session_data = self._pool.get(session_id)
         await session_data['session'].close()
         del self._pool[session_id]
-        LOGGER.debug('--> Session: {0} has been deleted for url: {1}'.format(session_id,session_data['url']))
+        LOGGER.debu('--> Session: {0} has been deleted for url: {1}'.format(session_id,session_data['url']))
 
     async def close_or_wait(self):
         '''
