@@ -7,7 +7,8 @@ import pathlib
 
 
 import cocrawler
-from cocrawler.task import Task, Req
+from cocrawler.task import Task
+from cocrawler.req import Req
 from cocrawler.counter import CounterBar
 import time
 
@@ -31,16 +32,16 @@ class Cruzer(cocrawler.Crawler):
         counter = 0
         for url in dispatcher():
             counter +=1
-            #url = 'https://www.whoishostingthis.com/tools/user-agent/'
+            url = 'https://httpbin.org/forms/post'
 
             req = Req(url)
             domain = req.url.hostname_without_www
-            cookie = {'data':domain,'data2':'val2'}
+            #cookie = {'data':domain,'data2':'val2'}
 
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            if counter > 500:
+            if counter > 0:
                 break
 
     def task_download(self,task):
@@ -48,9 +49,11 @@ class Cruzer(cocrawler.Crawler):
         counter.count()
 
         if task.doc.status  == 200:
-            #print('-->: {0}: {1}'.format(task.domain,task.cookie_list()))
-            #yield Task(name='second',req=req,raw=True,domain=task.domain)
-            pass
+
+            task.doc.set_input('custname','valvalaval')
+            req = task.doc.get_req()
+            #print(vars(req))
+            yield Task(name='second',req=req)
 
         else:
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
@@ -59,9 +62,9 @@ class Cruzer(cocrawler.Crawler):
 
     def task_second(self,task):
         if task.doc.status  == 200:
-            print('--> 222: {0}: {1}'.format(task.domain,task.cookie_list()))
+            print(task.doc.html)
         else:
-            #print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
+            print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
             pass
 
 

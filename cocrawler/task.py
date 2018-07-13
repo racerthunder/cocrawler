@@ -1,42 +1,15 @@
 import aiohttp
 
-from .urls import URL
+
 from .document import Document
-from .cookie import CookieManager
 
-class Req():
-    '''
-    request class holding method and data for post
-    '''
-    def __init__(self,url,post=None):
-        self.source_url = url
-        self.url = URL(self.source_url)
-        self.post = post
-        self.cookies = None
-
-    @property
-    def method(self):
-        if self.post is not None:
-            return 'POST'
-        else:
-            return 'GET'
-
-    def set_post(self,data):
-        if not isinstance(data,dict):
-            raise ValueError('--> post must be Dict')
-        self.post = data
-
-    def set_cookie(self,data):
-        if not isinstance(data,dict):
-            raise ValueError('--> cookie must be Dict')
-        self.cookies = data
 
 class Task():
     def __init__(self,name,req,**kwargs):
         self.req = req
         self.last_url = None # store final address of the request
         self.name = name
-        self.doc = Document()
+        self.doc = Document(url=self.req.url.url)
         self.session_id=None # used with reuse_session==True
         self.cruzer=None # cruzer instance to get access to sessions pool
         self.flow = [] # names of the tasks that was executed before current one, if list is empty

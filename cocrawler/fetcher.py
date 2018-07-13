@@ -19,6 +19,7 @@ import traceback
 from collections import namedtuple
 import ssl
 import urllib
+import json
 
 import asyncio
 import logging
@@ -30,6 +31,32 @@ from . import content
 
 LOGGER = logging.getLogger(__name__)
 
+def _generate_form_data(**kwargs):
+
+    multipart = kwargs.pop('multipart_post')
+
+    form_data = aiohttp.FormData()
+
+    for name, value in kwargs.items():
+        data = []
+        if isinstance(value, (list, dict)):
+            data = [name, json.dumps(value)]
+
+        elif isinstance(value, (int, float, str, bool)):
+            data = [name, str(value)]
+
+        elif value is None:
+            data = [name, '']
+        else:
+            raise TypeError("Unknown Type: {}".format(type(value)))
+
+        if multipart:
+            form_data.add_field(*data,content_type="multipart/form-data")
+        else:
+            form_data.add_field(*data)
+
+
+    return form_data
 
 # XXX should be a policy plugin
 # XXX cookie handling -- no way to have a cookie jar other than at session level
@@ -102,11 +129,15 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
                     session.cookie_jar.update_cookies(req.cookies)
 
                 if req.post is not None:
+                    if req.multipart_post:
+                        post_data = _generate_form_data(multipart_post=req.multipart_post,**req.post)
+                    else:
+                        post_data = req.post
 
                     response = await session.post(mock_url or url.url,
                                              allow_redirects=allow_redirects,
                                              max_redirects=max_redirects,
-                                             headers=headers,data=req.post)
+                                             headers=headers,data=post_data)
 
                 else:
                     response = await session.get(mock_url or url.url,
