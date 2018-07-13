@@ -3,6 +3,9 @@ from lxml.html import HTMLParser,HtmlElement
 from selection import XpathSelector
 from six import BytesIO, StringIO
 
+'''
+https://github.com/rushter/selectolax - faster 20 times then lxml
+'''
 
 class Document():
     def __init__(self,html=None):

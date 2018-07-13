@@ -864,6 +864,7 @@ class Crawler:
                     LOGGER.warning('--> queue is about to join, but we still have things in deffered queue, waiting')
                     await self.deffered_queue.join()
                 else:
+                    #LOGGER.warning('--> deffered queue size is: {0}'.format(self.deffered_queue.qsize()))
                     await self.scheduler.close()
                 break
 

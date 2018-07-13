@@ -9,6 +9,7 @@ import pathlib
 import cocrawler
 from cocrawler.task import Task, Req
 from cocrawler.counter import CounterBar
+import time
 
 counter = CounterBar()
 
@@ -47,7 +48,6 @@ class Cruzer(cocrawler.Crawler):
         counter.count()
 
         if task.doc.status  == 200:
-
             #print('-->: {0}: {1}'.format(task.domain,task.cookie_list()))
             #yield Task(name='second',req=req,raw=True,domain=task.domain)
             pass
