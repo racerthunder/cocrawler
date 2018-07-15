@@ -169,12 +169,12 @@ class Scheduler:
     def work_done(self):
         self.q.task_done()
 
-    def requeue_work(self, work):
+    async def requeue_work(self, work):
         '''
         When we requeue work after a failure, we add 0.5 to the rand;
         eventually do that in here
         '''
-        self.q.put_nowait(work)
+        await self.q.put(work)
 
     def queue_work(self, work):
         self.q.put_nowait(work)

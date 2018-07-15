@@ -10,12 +10,18 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.counter import CounterBar
-import time
+
 
 counter = CounterBar()
 
 def dispatcher():
 
+    # ls = ['http://blogger.com',]
+    # counter.init(len(ls))
+    # for url in ls:
+    #     yield url
+    #
+    # return
     path = pathlib.Path(__file__).parent.parent / 'data' / 'top-1k.txt'
     urls = [line.strip() for line in path.open()]
 
@@ -31,8 +37,9 @@ class Cruzer(cocrawler.Crawler):
     def task_generator(self):
         counter = 0
         for url in dispatcher():
+
             counter +=1
-            url = 'https://httpbin.org/forms/post'
+            #url = 'https://httpbin.org/forms/post'
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -41,7 +48,7 @@ class Cruzer(cocrawler.Crawler):
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            if counter > 0:
+            if counter > 100:
                 break
 
     def task_download(self,task):
@@ -49,15 +56,13 @@ class Cruzer(cocrawler.Crawler):
         counter.count()
 
         if task.doc.status  == 200:
-
-            task.doc.set_input('custname','valvalaval')
-            req = task.doc.get_req()
+            print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
             #print(vars(req))
-            yield Task(name='second',req=req)
+            #yield Task(name='second',req=req)
 
         else:
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
-            pass
+            print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
 
 
     def task_second(self,task):

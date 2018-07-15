@@ -163,6 +163,7 @@ def fail(ridealong, crawler):
     '''
     Called for all final failures
     '''
+
     if 'seed' not in ridealong:
         return
 

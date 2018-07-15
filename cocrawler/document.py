@@ -327,7 +327,7 @@ class FormExtension(object):
 
 
         req = Req(url=action_url)
-        req.set_multipart(True)
+        req.set_multipart(_multipart)
         req.set_post(dict(post_items))
 
         return req

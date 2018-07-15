@@ -124,11 +124,11 @@ class SessionPool():
         curr_time = time.time()
 
         for session_id,diff in data.items():
-
+            session_data = self._pool.get(session_id)
             # check if session has stalled by checking last completed task time
             if self._last_avg_work_time is not None:
                 if len(self._tasks_finished[session_id]) > 0:
-                    session_data = self._pool.get(session_id)
+
                     last_task_time = self._tasks_submited[session_id][-1][1] # get time for the last submited task
                     running_time = curr_time - last_task_time
                     if running_time > (self._last_avg_work_time * self.max_work_time):
@@ -143,7 +143,7 @@ class SessionPool():
 
             else:
                 #give back control if all sessions are busy
-                LOGGER.debug('--> Session: {0} has running tasks: {1}'.format(session_id,str(diff)))
+                LOGGER.debug('--> Session: {0} has running tasks: {1} , url: {2}'.format(session_id,str(diff),session_data['url']))
                 await asyncio.sleep(0.1)
 
 
@@ -163,3 +163,10 @@ class SessionPool():
 
 
         return data
+
+    @property
+    def busy(self):
+        if len(self._tasks_submited) > 0:
+            return True
+        else:
+            return False

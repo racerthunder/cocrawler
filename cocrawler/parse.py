@@ -196,6 +196,7 @@ def url_clean_join(links, url=None):
 
 
 def report():
+    return
     b = stats.stat_value('parser html bytes')
     c = stats.stat_value('find_html_links re')
     LOGGER.info('Burner thread report:')

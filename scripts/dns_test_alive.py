@@ -21,7 +21,7 @@ for file_name in files:
 
 
 async def resolve(ns):
-    host = 'tradingview.com'
+    host = 'mail.ru'
     dns.setup_resolver([ns])
     try:
         result = await dns.query(host, 'A')

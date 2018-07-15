@@ -36,7 +36,7 @@ REST: {}
 
 Crawl:
   MaxDepth: 3
-  MaxTries: 4
+  MaxTries: 2
   PageTimeout: 5
   RetryTimeout: 5
   MaxWorkers: 10
@@ -44,7 +44,7 @@ Crawl:
   MaxPageSize: 1000000
   PreventCompression: False
   UpgradeInsecureRequests: 1
-  ConnectTimeout: 0.  # seconds, 0.=none
+  ConnectTimeout: 2  # seconds, 0.=none
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None
@@ -101,10 +101,10 @@ WARC:
 Logging:
 # note that the following files are all opened for append, for
 # restart purposes. Might change to unique filenames?
- Crawllog: ../log/crawllog.jsonl
+#  Crawllog: ../log/crawllog.jsonl
 #  Frontierlog: frontierlog
 #  Robotslog: robotslog.jsonl
-#  RejectedAddUrllog: rejectedaddurl.log
+   RejectedAddUrllog: ../log/rejectedaddurl.log
 #  Facetlog: facet.log
 
 Testing:

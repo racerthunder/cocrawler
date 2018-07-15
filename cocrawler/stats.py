@@ -86,7 +86,12 @@ def record_a_latency(name, start, url=None, elapsedmin=10.0):
         url = url or 'none'
         length = len(latency['list'])
         for _ in range(9, length):
-            latency['list'].popitem(last=False)  # throwing away biggest value(s)
+            try:
+                latency['list'].popitem(last=False)  # throwing away biggest value(s)
+            except Exception as ex:
+                LOGGER.exception(ex)
+                latency['list'].popitem()
+
         latency['list'][url] = -elapsed
 
     latencies[name] = latency

@@ -13,6 +13,7 @@ import traceback
 import concurrent
 import functools
 import argparse
+from collections import namedtuple
 
 import sys
 import resource
@@ -321,6 +322,7 @@ class Crawler:
             url = allowed
             ridealong['url'] = url
 
+        '''
         if reason:
             pass
         elif priority > int(config.read('Crawl', 'MaxDepth')):
@@ -344,7 +346,7 @@ class Crawler:
 
         if 'skip_crawled' in ridealong:
             del ridealong['skip_crawled']
-
+        '''
         # end allow/deny plugin
 
         LOGGER.debug('actually adding url %s, surt %s', url.url, url.surt)
@@ -393,7 +395,7 @@ class Crawler:
             await self.pool.global_session.close()
 
 
-    def _retry_if_able(self, work, ridealong):
+    async def _retry_if_able(self, work, ridealong):
         LOGGER.debug('--> retrying work: {0}'.format(work))
         priority, rand, surt = work
         retries_left = ridealong.get('retries_left', 0) - 1
@@ -402,8 +404,9 @@ class Crawler:
             # XXX remember that this host had a hard fail
             stats.stats_sum('retries completely exhausted', 1)
             self.scheduler.del_ridealong(surt)
+
             seeds.fail(ridealong, self)
-            return
+            return 'no_retries_left'
         # XXX jsonlog this soft fail
         ridealong['retries_left'] = retries_left
         self.scheduler.set_ridealong(surt, ridealong)
@@ -411,8 +414,8 @@ class Crawler:
         extra = random.uniform(0, 0.2)
         priority, rand = self.scheduler.update_priority(priority, rand+extra)
         ridealong['priority'] = priority
-        self.scheduler.requeue_work((priority, rand, surt))
-        return
+        await self.scheduler.requeue_work((priority, rand, surt))
+        return ridealong
 
     async def fetch_and_process(self, work):
         '''
@@ -432,17 +435,29 @@ class Crawler:
         req_headers, proxy, mock_url, mock_robots = fetcher.apply_url_policies(url, self)
 
         host_geoip = {}
+
         if not mock_url:
             entry = await dns.prefetch(url, self.resolver)
             if not entry:
                 # fail out, we don't want to do DNS in the robots or page fetch
-                self._retry_if_able(work, ridealong)
-                return ridealong['task']
+                res = await self._retry_if_able(work, ridealong)
+
+                if res == 'no_retries_left':
+                    fr_dummy = namedtuple('fr_dummy','response last_exception')
+                    fr_dummy.response = None # required here
+                    fr_dummy.last_exception = 'dns_no_entry'
+                    await self.make_callback(ridealong,fr_dummy)
+                    return ridealong['task']
+                else:
+                    # job requeued
+                    return ridealong['task']
+
             addrs, expires, _, host_geoip = entry
             if not host_geoip:
                 with stats.record_burn('geoip lookup'):
                     geoip.lookup_all(addrs, host_geoip)
                 post_fetch.post_dns(addrs, expires, url, self)
+
 
         # ---> brc, skip section <---
         if not self.mode == 'cruzer':
@@ -451,7 +466,7 @@ class Crawler:
             if not r:
                 # really, we shouldn't retry a robots.txt rule failure
                 # but we do want to retry robots.txt failed to fetch
-                self._retry_if_able(work, ridealong)
+                await self._retry_if_able(work, ridealong)
                 return
         # ---> end skip section <--
 
@@ -459,6 +474,7 @@ class Crawler:
 
         f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
+
 
 
         json_log = {'kind': ridealong['task'].req.method, 'url': url.url, 'priority': priority,
@@ -469,23 +485,38 @@ class Crawler:
             json_log['truncated'] = f.is_truncated
 
         if f.last_exception is not None or f.response.status >= 500:
-            self._retry_if_able(work, ridealong)
+            res = await self._retry_if_able(work, ridealong)
 
             # an error occured therefore no point in parsing html, make callback now and return
 
-            await self.make_callback(ridealong,f)
-            return ridealong['task']
+            if res == 'no_retries_left':
+                # all retries attempts exausted, pass an error to handler
+                await self.make_callback(ridealong,f)
+                self.scheduler.del_ridealong(surt)
+
+                return ridealong['task']
+            else:
+                # still has some retries left, res is an old ridealong that was requed
+                return res['task']
 
         self.scheduler.del_ridealong(surt)
 
-        if f.response.status >= 400 and 'seed' in ridealong:
-            seeds.fail(ridealong, self)
+        # if f.response.status >= 400 and 'seed' in ridealong:
+        #     seeds.fail(ridealong, self)
 
         json_log['status'] = f.response.status
 
         if post_fetch.is_redirect(f.response):
-            await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
+            res = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
+            if res and res == 'no_valid_redir':
+                fr_dummy = namedtuple('fr_dummy','response last_exception')
+                fr_dummy.response = None # required here
+                fr_dummy.last_exception = 'no_valid_redir'
+                await self.make_callback(ridealong,fr_dummy)
+
+            else:
+                self.add_deffered_task(0,res)
 
         else:
 
@@ -497,8 +528,6 @@ class Crawler:
 
 
                 ridealong['task'].doc.html = html
-
-
 
             await self.make_callback(ridealong,f)
 
@@ -574,8 +603,9 @@ class Crawler:
                     err = traceback.format_exc()
                     # TypeError is raised when task returns nothing, try to catch this specific error
                     # be carefull here since others could drop down here as well
+                    #TODO: make it right
                     if 'object is not an iterator' in err:
-                        LOGGER.debug('--> No task left in: {0}'.format(task_name))
+                        LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
                     else:
                         traceback.print_exc()
                     break
@@ -780,13 +810,17 @@ class Crawler:
                 priority, ridealong = self.deffered_queue.get_nowait()
                 await self.add_url_async(priority,ridealong)
                 LOGGER.debug('--> deffered task added: {0}'.format(ridealong['url'].hostname))
+                self.deffered_queue.task_done() # this wont be reached if the queue is empty
             except asyncio.queues.QueueEmpty:
                 LOGGER.debug('--> deffered queue is empty')
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.5)
 
+            except concurrent.futures._base.CancelledError:  # seen with ^C
+                pass
             except Exception as ex:
                 traceback.print_exc()
-                break
+
+
 
     async def queue_producer(self):
         while True:
@@ -859,14 +893,24 @@ class Crawler:
             if self.scheduler.done(len(self.workers)):
                 # this is a little racy with how awaiting work is set and the queue is read
                 # while we're in this join we aren't looking for STOPCRAWLER etc
-                LOGGER.warning('all workers appear idle, queue appears empty, executing join')
+
+                await self.pool.close_or_wait()
+
                 if not self.deffered_queue.empty():
+                    # there is no point calling join on this queue since it's marked as complete once items is taken
                     LOGGER.warning('--> queue is about to join, but we still have things in deffered queue, waiting')
-                    await self.deffered_queue.join()
+                    await asyncio.sleep(1)
+
+                elif self.pool.busy == True:
+                    LOGGER.warning('--> queue is about to join, but there are tasks in submited list, [ main queue: {0}'
+                                   ' , deffered queue: {1} , ridealong size: {2} ]'.format(self.scheduler.qsize(),self.deffered_queue.qsize(),len(self.scheduler.ridealong)))
+                    await asyncio.sleep(1)
+
                 else:
-                    #LOGGER.warning('--> deffered queue size is: {0}'.format(self.deffered_queue.qsize()))
+                    LOGGER.warning('all workers appear idle, queue appears empty, executing join')
                     await self.scheduler.close()
-                break
+                    await self.deffered_queue.join()
+                    break
 
             self.update_cpu_stats()
             # show stats and close finished sessions
