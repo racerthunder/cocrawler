@@ -222,72 +222,8 @@ class Crawler:
         if self.frontierlogfd:
             print(url.url, file=self.frontierlogfd)
 
-    async def add_url_async(self, priority, ridealong):
-        # XXX eventually do something with the frag - record as a "javascript-needed" clue
 
-        # XXX optionally generate additional urls plugin here
-        # e.g. any amazon url with an AmazonID should add_url() the base product page
-        # and a non-homepage should add the homepage
-        # and a homepage add should add soft404 detection
-        # and ...
-
-        url = ridealong['url']
-
-        if self.mode != 'cruzer':
-            if 'seed' in ridealong:
-                seeds.seed_from_redir(url)
-
-            # XXX allow/deny plugin modules go here
-            if priority > int(config.read('Crawl', 'MaxDepth')):
-                stats.stats_sum('rejected by MaxDepth', 1)
-                self.log_rejected_add_url(url)
-                return
-            if 'skip_seen_url' not in ridealong:
-                if self.datalayer.crawled(url):
-                    stats.stats_sum('rejected by seen_urls', 1)
-                    self.log_rejected_add_url(url)
-                    return
-            else:
-                del ridealong['skip_seen_url']
-
-        allowed = url_allowed.url_allowed(url)
-        if not allowed:
-            LOGGER.debug('url %s was rejected by url_allow.', url.url)
-            stats.stats_sum('rejected by url_allowed', 1)
-            self.log_rejected_add_url(url)
-            return
-        if allowed.url != url.url:
-            LOGGER.debug('url %s was modified to %s by url_allow.', url.url, allowed.url)
-            stats.stats_sum('modified by url_allowed', 1)
-            url = allowed
-            ridealong['url'] = url
-            if self.datalayer.crawled(url):
-                stats.stats_sum('rejected by seen_urls', 1)
-                self.log_rejected_add_url(url)
-                return
-
-        # end allow/deny plugin
-
-        LOGGER.debug('actually adding url %s, surt %s', url.url, url.surt)
-        stats.stats_sum('added urls', 1)
-
-        ridealong['priority'] = priority
-
-        # to randomize fetches, and sub-prioritize embeds
-        if ridealong.get('embed'):
-            rand = 0.0
-        else:
-            rand = random.uniform(0, 0.99999)
-
-        self.scheduler.set_ridealong(url.surt, ridealong)
-
-        await self.scheduler.queue_work_async((priority, rand, url.surt))
-
-        self.datalayer.add_crawled(url)
-        return 1
-
-
-    def add_url(self, priority, ridealong):
+    async def add_url(self, priority, ridealong):
         # XXX eventually do something with the frag - record as a "javascript-needed" clue
 
         # XXX optionally generate additional urls plugin here
@@ -362,7 +298,7 @@ class Crawler:
 
         self.scheduler.set_ridealong(url.surt, ridealong)
 
-        self.scheduler.queue_work((priority, rand, url.surt))
+        await self.scheduler.queue_work((priority, rand, url.surt))
 
         self.datalayer.add_crawled(url)
         return 1
@@ -808,7 +744,7 @@ class Crawler:
         while True:
             try:
                 priority, ridealong = self.deffered_queue.get_nowait()
-                await self.add_url_async(priority,ridealong)
+                await self.add_url(priority,ridealong)
                 LOGGER.debug('--> deffered task added: {0}'.format(ridealong['url'].hostname))
                 self.deffered_queue.task_done() # this wont be reached if the queue is empty
             except asyncio.queues.QueueEmpty:
@@ -840,12 +776,8 @@ class Crawler:
                 break
 
             ride_along = self.get_ridealong(task)
-            # this link will be blocked if no space left in queue
-            try:
-                self.add_url(1,ride_along)
-                await asyncio.sleep(0.1)
-            except asyncio.queues.QueueFull:
-                await self.add_url_async(1,ride_along)
+
+            await self.add_url(1,ride_along)
 
 
 

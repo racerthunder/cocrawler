@@ -176,11 +176,11 @@ class Scheduler:
         '''
         await self.q.put(work)
 
-    def queue_work(self, work):
-        self.q.put_nowait(work)
-
-    async def queue_work_async(self, work):
+    async def queue_work(self, work):
         await self.q.put(work)
+
+    # async def queue_work_async(self, work):
+    #     await self.q.put(work)
 
     def qsize(self):
         return self.q.qsize()
