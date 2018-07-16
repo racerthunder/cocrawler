@@ -16,7 +16,7 @@ counter = CounterBar()
 
 def dispatcher():
 
-    # ls = ['http://blogger.com',]
+    # ls = ['http://facebook.com','http://fbcdn.net']
     # counter.init(len(ls))
     # for url in ls:
     #     yield url
@@ -48,7 +48,8 @@ class Cruzer(cocrawler.Crawler):
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            if counter > 5:
+            break
+            if counter > 10:
                 break
 
     def task_download(self,task):
@@ -58,6 +59,7 @@ class Cruzer(cocrawler.Crawler):
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
             #print(vars(req))
+            req = Req(task.last_url + '?id=1')
             #yield Task(name='second',req=req)
 
         else:
@@ -67,7 +69,7 @@ class Cruzer(cocrawler.Crawler):
 
     def task_second(self,task):
         if task.doc.status  == 200:
-            print(task.doc.html)
+            print('good222: {0} , last_url: {1}'.format(task.req.url.hostname,task.last_url))
         else:
             print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
             pass

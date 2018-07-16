@@ -14,6 +14,7 @@ import concurrent
 import functools
 import argparse
 from collections import namedtuple
+import inspect
 
 import sys
 import resource
@@ -74,6 +75,17 @@ class FixupEventLoopPolicy(uvloop.EventLoopPolicy):
             return loop
         return super().new_event_loop()
 
+class CallbackHandler():
+
+    def __init__(self,partial):
+        self.partial = partial
+
+    def __await__(self):
+        return self.worker().__await__()
+
+    async def worker(self):
+        self.partial()
+        return await asyncio.sleep(0.1)
 
 class Crawler:
     def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
@@ -285,7 +297,7 @@ class Crawler:
         '''
         # end allow/deny plugin
 
-        LOGGER.debug('actually adding url %s, surt %s', url.url, url.surt)
+        LOGGER.debug('actually adding url %s, surt %s, for task domain: %s', url.url, url.surt, ridealong['task'].req.url.hostname)
         stats.stats_sum('added urls', 1)
 
         ridealong['priority'] = priority
@@ -296,9 +308,12 @@ class Crawler:
         else:
             rand = random.uniform(0, 0.99999)
 
-        self.scheduler.set_ridealong(url.surt, ridealong)
+        #self.scheduler.set_ridealong(url.surt, ridealong)
+        #await self.scheduler.queue_work((priority, rand, url.surt))
 
-        await self.scheduler.queue_work((priority, rand, url.surt))
+
+        self.scheduler.set_ridealong(ridealong['task'].req.url.surt, ridealong)
+        await self.scheduler.queue_work((priority, rand, ridealong['task'].req.url.surt))
 
         self.datalayer.add_crawled(url)
         return 1
@@ -341,7 +356,7 @@ class Crawler:
             stats.stats_sum('retries completely exhausted', 1)
             self.scheduler.del_ridealong(surt)
 
-            seeds.fail(ridealong, self)
+            #seeds.fail(ridealong, self)
             return 'no_retries_left'
         # XXX jsonlog this soft fail
         ridealong['retries_left'] = retries_left
@@ -443,16 +458,16 @@ class Crawler:
         json_log['status'] = f.response.status
 
         if post_fetch.is_redirect(f.response):
-            res = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
+            __ridealong = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
             # meta-http-equiv-redirect will be dealt with in post_fetch
-            if res and res == 'no_valid_redir':
+            if __ridealong and __ridealong == 'no_valid_redir':
                 fr_dummy = namedtuple('fr_dummy','response last_exception')
                 fr_dummy.response = None # required here
                 fr_dummy.last_exception = 'no_valid_redir'
                 await self.make_callback(ridealong,fr_dummy)
 
             else:
-                self.add_deffered_task(0,res)
+                self.add_deffered_task(0,__ridealong)
 
         else:
 
@@ -491,7 +506,12 @@ class Crawler:
         partial = functools.partial(self.load_task_function, ridealong, f)
         with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
             try:
-                self.loop.run_in_executor(None,partial)
+
+
+
+                handler = CallbackHandler(partial)
+                await handler
+                #self.loop.run_in_executor(None,partial)
 
             except ValueError as e:  # if it pukes, ..
                 stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
@@ -525,31 +545,22 @@ class Crawler:
             if self.reuse_session:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)
 
-            while True:
-                try:
-                    task = next(task_generator)
+            try:
+                # Attempt to see if you have an iterable object.
+                # In the case of a generator or iterator iter simply
+                # returns the value it was passed.
+                iterator = iter(task_generator)
+            except TypeError:
+                LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
+
+            except Exception as ex:
+                traceback.print_exc()
+
+            else:
+                for task in iterator:
                     ride_along = self.get_ridealong(task,parent_task=parent_task)
                     LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
                     self.add_deffered_task(0,ride_along)
-
-                except (StopIteration):
-                    break
-
-                except TypeError as ex:
-                    err = traceback.format_exc()
-                    # TypeError is raised when task returns nothing, try to catch this specific error
-                    # be carefull here since others could drop down here as well
-                    #TODO: make it right
-                    if 'object is not an iterator' in err:
-                        LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
-                    else:
-                        traceback.print_exc()
-                    break
-
-                except Exception as ex:
-                    traceback.print_exc()
-                    break
-
 
 
     async def work(self):
@@ -745,7 +756,8 @@ class Crawler:
             try:
                 priority, ridealong = self.deffered_queue.get_nowait()
                 await self.add_url(priority,ridealong)
-                LOGGER.debug('--> deffered task added: {0}'.format(ridealong['url'].hostname))
+                LOGGER.debug('--> deffered task added, actual url: {0} , task domain: {1}'.format(ridealong['url'].url,
+                                                                                               ridealong['task'].req.url.hostname))
                 self.deffered_queue.task_done() # this wont be reached if the queue is empty
             except asyncio.queues.QueueEmpty:
                 LOGGER.debug('--> deffered queue is empty')
@@ -755,6 +767,7 @@ class Crawler:
                 pass
             except Exception as ex:
                 traceback.print_exc()
+                break
 
 
 
@@ -936,6 +949,7 @@ class Crawler:
 
         loop = asyncio.get_event_loop()
 
+        #loop.set_debug(True)
 
         slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
         if slow_callback_duration:
