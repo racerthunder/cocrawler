@@ -447,7 +447,7 @@ def main():
     path = Path('/Volumes/crypt/_Coding/PYTHON/TEMP/buffer.html')
     with path.open(encoding='utf-8') as f:
         html = f.read()
-    from cocrawler.task import Req
+    from cocrawler.req import Req
 
     req = Req('http://google.com')
     doca = Document(html,req=req)

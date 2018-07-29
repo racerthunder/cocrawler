@@ -714,7 +714,8 @@ class Crawler:
                 stats.stats_set('Sessions Pool size',self.pool.size())
             stats.report()
             stats.coroutine_report()
-            self.memory()
+            if config.read('Crawl', 'DebugMemory'):
+                self.memory()
             if self.reuse_session:
                 await self.pool.close_or_wait()
 

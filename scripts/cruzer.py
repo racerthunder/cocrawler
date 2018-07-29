@@ -46,7 +46,7 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            url = 'https://asdfasdlkfjasasdfasdfasdf.com'
+            #url = 'https://asdfasdlkfjasasdfasdfasdf.com'
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -55,7 +55,7 @@ class Cruzer(cocrawler.Crawler):
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            break
+            #break
             #
             if counter > 100:
                 break
