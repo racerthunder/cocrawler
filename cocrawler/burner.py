@@ -78,7 +78,9 @@ class Burner:
             except :
                 self.cpu_count = multiprocessing.cpu_count()
 
-            if thread_count > self.cpu_count:
+            self.cpu_count = self.cpu_count if isinstance(self.cpu_count,int) else len(self.cpu_count)
+
+            if int(thread_count) > self.cpu_count:
                 LOGGER.warning('fewer cpus (%d) than burner threads (%d), performance will suffer',
                                self.cpu_count, thread_count)
 

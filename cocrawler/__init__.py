@@ -6,8 +6,8 @@ import time
 import os
 import random
 import socket
-from pkg_resources import get_distribution, DistributionNotFound
-from setuptools_scm import get_version
+# from pkg_resources import get_distribution, DistributionNotFound
+# from setuptools_scm import get_version
 import json
 import traceback
 import concurrent
@@ -22,6 +22,7 @@ import os
 import faulthandler
 import gc
 import warnings
+import io
 
 import asyncio
 import uvloop
@@ -30,6 +31,7 @@ import aiohttp
 import aiohttp.resolver
 import aiohttp.connector
 import psutil
+import objgraph
 
 from . import scheduler
 from . import stats
@@ -52,6 +54,7 @@ from . import timer
 from . import webserver
 
 from . sessions import SessionPool
+
 
 LOGGER = logging.getLogger(__name__)
 __title__ = 'cocrawler'
@@ -110,13 +113,14 @@ class Crawler:
         self.deffered_queue = asyncio.Queue()
         self.pool = SessionPool() # keep all runnning sessions if reuse_session==True
 
-        try:
-            # this works for the installed package
-            self.version = get_distribution(__name__).version
-        except DistributionNotFound:
-            # this works for an uninstalled git repo, like in the CI infrastructure
-            self.version = get_version(root='..', relative_to=__file__)
+        # try:
+        #     # this works for the installed package
+        #     self.version = get_distribution(__name__).version
+        # except DistributionNotFound:
+        #     # this works for an uninstalled git repo, like in the CI infrastructure
+        #     self.version = get_version(root='..', relative_to=__file__)
 
+        self.version = '0.1' # workaround for cli running setup
         self.robotname, self.ua = useragent.useragent(self.version)
 
         self.resolver = dns.get_resolver()
@@ -345,7 +349,6 @@ class Crawler:
         if self.reuse_session is False:
             await self.pool.global_session.close()
 
-
     async def _retry_if_able(self, work, ridealong):
         LOGGER.debug('--> retrying work: {0}'.format(work))
         priority, rand, surt = work
@@ -568,36 +571,36 @@ class Crawler:
         Process queue items until we run out.
         '''
 
-        try:
-            while True:
+        #try:
+        while True:
 
-                work = await self.scheduler.get_work()
+            work = await self.scheduler.get_work()
 
-                try:
+            try:
 
-                    task = await self.fetch_and_process(work)
+                task = await self.fetch_and_process(work)
 
-                except concurrent.futures._base.CancelledError:  # seen with ^C
-                    pass
-                # ValueError('no A records found') should not be a mystery
-                except Exception as e:
-                    # this catches any buggy code that executes in the main thread
-                    LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
-                    traceback.print_exc()
-                    # falling through causes this work item to get marked done, and we continue
+            except concurrent.futures._base.CancelledError:  # seen with ^C
+                pass
+            # ValueError('no A records found') should not be a mystery
+            except Exception as e:
+                # this catches any buggy code that executes in the main thread
+                LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
+                traceback.print_exc()
+                # falling through causes this work item to get marked done, and we continue
 
-                self.scheduler.work_done()
+            self.scheduler.work_done()
 
-                if self.stopping:
-                    raise asyncio.CancelledError
+            if self.stopping:
+                raise asyncio.CancelledError
 
-                if self.paused:
-                    with stats.coroutine_state('paused'):
-                        while self.paused:
-                            await asyncio.sleep(1)
+            if self.paused:
+                with stats.coroutine_state('paused'):
+                    while self.paused:
+                        await asyncio.sleep(1)
 
-        except asyncio.CancelledError:
-            pass
+        # except asyncio.CancelledError:
+        #     pass
 
     async def control_limit(self):
         '''
@@ -652,6 +655,24 @@ class Crawler:
     def summarize(self):
         self.scheduler.summarize()
 
+    def memory(self):
+        mem = self.scheduler.memory()
+        mem.update(self.datalayer.memory())
+
+        if self.reuse_session:
+            mem.update(self.pool.memory())
+
+        print('Memory summary')
+        for k in sorted(mem.keys()):
+            v = mem[k]
+            print('  ', k, 'len', v['len'], 'bytes', v['bytes'])
+        print('Top objects')
+        lines = io.StringIO()
+        objgraph.show_most_common_types(limit=20, file=lines)
+        lines.seek(0)
+        for l in lines.read().splitlines():
+            print('  ', l)
+
     def save(self, f):
         self.scheduler.save(self, f, )
 
@@ -693,6 +714,7 @@ class Crawler:
                 stats.stats_set('Sessions Pool size',self.pool.size())
             stats.report()
             stats.coroutine_report()
+            self.memory()
             if self.reuse_session:
                 await self.pool.close_or_wait()
 
@@ -755,6 +777,7 @@ class Crawler:
         while True:
             try:
                 priority, ridealong = self.deffered_queue.get_nowait()
+
                 await self.add_url(priority,ridealong)
                 LOGGER.debug('--> deffered task added, actual url: {0} , task domain: {1}'.format(ridealong['url'].url,
                                                                                                ridealong['task'].req.url.hostname))
@@ -768,6 +791,10 @@ class Crawler:
             except Exception as ex:
                 traceback.print_exc()
                 break
+
+            if self.stopping:
+
+                raise asyncio.CancelledError
 
 
 
@@ -791,6 +818,9 @@ class Crawler:
             ride_along = self.get_ridealong(task)
 
             await self.add_url(1,ride_along)
+
+            if self.stopping:
+                raise asyncio.CancelledError
 
 
 
@@ -853,6 +883,7 @@ class Crawler:
 
                 else:
                     LOGGER.warning('all workers appear idle, queue appears empty, executing join')
+
                     await self.scheduler.close()
                     await self.deffered_queue.join()
                     break
@@ -862,9 +893,15 @@ class Crawler:
             await self.minute()
 
 
+
+        if config.read('Crawl', 'DebugMemory'):
+            self.memory()
+
         self.cancel_workers()
         self.producer.cancel()
         self.deffered_queue_checker.cancel()
+
+
 
         if self.stopping or config.read('Save', 'SaveAtExit'):
             self.summarize()
@@ -964,6 +1001,7 @@ class Crawler:
         else:
             app = None
 
+
         try:
             loop.run_until_complete(cruzer.crawl())
         except KeyboardInterrupt:
@@ -971,6 +1009,7 @@ class Crawler:
             print('\nInterrupt. Exiting cleanly.\n')
             stats.coroutine_report()
             cruzer.cancel_workers()
+
         finally:
             loop.run_until_complete(cruzer.close())
             if app:

@@ -3,6 +3,7 @@ import logging
 from collections import defaultdict
 import asyncio
 from statistics import mean
+import pympler
 
 LOGGER = logging.getLogger(__name__)
 
@@ -170,3 +171,21 @@ class SessionPool():
             return True
         else:
             return False
+
+    def memory(self):
+        '''
+        Return a dict summarizing the scheduler's memory usage
+        '''
+        pool = {}
+        pool['bytes'] = pympler.asizeof.asizesof(self._pool)[0]
+        pool['len'] = len(self._pool)
+
+        task_submited = {}
+        task_submited['bytes'] = pympler.asizeof.asizesof(self._tasks_submited)[0]
+        task_submited['len'] = len(self._tasks_submited)
+
+        task_finished = {}
+        task_finished['bytes'] = pympler.asizeof.asizesof(self._tasks_finished)[0]
+        task_finished['len'] = len(self._tasks_finished)
+
+        return {'pool': pool, 'task_submited': task_submited, 'task_finished':task_finished}

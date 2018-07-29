@@ -9,10 +9,13 @@ import pathlib
 import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
-from cocrawler.counter import CounterBar
+from tqdm import tqdm
 
 
-counter = CounterBar()
+
+path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'top-1k.txt'
+
+TOTAL = sum([1 for x in path.open()])
 
 def dispatcher():
 
@@ -22,13 +25,14 @@ def dispatcher():
     #     yield url
     #
     # return
-    path = pathlib.Path(__file__).parent.parent / 'data' / 'top-1k.txt'
+
+
     urls = [line.strip() for line in path.open()]
 
-    counter.init(len(urls))
 
     for url in urls:
         yield 'http://{0}'.format(url)
+
         #break
 
 class Cruzer(cocrawler.Crawler):
@@ -36,10 +40,13 @@ class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
         counter = 0
-        for url in dispatcher():
+        dis = dispatcher()
+
+
+        for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            #url = 'https://httpbin.org/forms/post'
+            url = 'https://asdfasdlkfjasasdfasdfasdf.com'
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -49,12 +56,13 @@ class Cruzer(cocrawler.Crawler):
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
             break
-            if counter > 10:
+            #
+            if counter > 100:
                 break
 
     def task_download(self,task):
 
-        counter.count()
+
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
@@ -80,3 +88,6 @@ if __name__ == '__main__':
     command line args example: --config Crawl.MaxWorkers:15 --loglevel INFO --reuse_session
     '''
     Cruzer.run()
+
+
+

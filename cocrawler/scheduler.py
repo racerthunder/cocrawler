@@ -17,6 +17,8 @@ import logging
 import cachetools.ttl
 import json
 
+import pympler.asizeof
+
 from . import config
 from . import stats
 
@@ -101,7 +103,7 @@ class Scheduler:
                 self.awaiting_work -= 1
 
             if self.max_crawled_urls_exceeded():
-                self.q.put_nowait(work)
+                await self.q.put(work)
                 self.q.task_done()
                 raise asyncio.CancelledError  # cancel this one worker
 
@@ -117,7 +119,7 @@ class Scheduler:
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
                     await asyncio.sleep(dt)
-                    self.q.put_nowait(work)
+                    await self.q.put(work)
                     self.q.task_done()
                     continue
 
@@ -297,3 +299,15 @@ class Scheduler:
             priority += 1
             rand -= 1.0
         return priority, rand
+
+    def memory(self):
+        '''
+        Return a dict summarizing the scheduler's memory usage
+        '''
+        q = {}
+        q['bytes'] = pympler.asizeof.asizesof(self.q)[0]
+        q['len'] = self.q.qsize()
+        ridealong = {}
+        ridealong['bytes'] = pympler.asizeof.asizesof(self.ridealong)[0]
+        ridealong['len'] = len(self.ridealong)
+        return {'q': q, 'ridealong': ridealong}

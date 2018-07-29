@@ -36,8 +36,8 @@ REST: {}
 
 Crawl:
   MaxDepth: 3
-  MaxTries: 2
-  PageTimeout: 5
+  MaxTries: 4
+  PageTimeout: 30
   RetryTimeout: 5
   MaxWorkers: 10
   MaxHostQPS: 10
@@ -48,6 +48,7 @@ Crawl:
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None
+#  DebugMemory: True
 
 UserAgent:
   Style: crawler
@@ -81,9 +82,8 @@ Plugins:
   url_allowed: AllDomains
 
 Multiprocess:
-  ParseInBurnerSize: 1
   BurnerThreads: 2
-#  ParseInBurnerSize: 20000
+  ParseInBurnerSize: 20000
 #  Affinity: yes
 
 Save:
@@ -99,12 +99,13 @@ WARC:
 
 #Logging: {}
 Logging:
+  LoggingLevel: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+#  RejectedAddUrllog: ../log/rejectedaddurl.log
 # note that the following files are all opened for append, for
 # restart purposes. Might change to unique filenames?
 #  Crawllog: ../log/crawllog.jsonl
 #  Frontierlog: frontierlog
 #  Robotslog: robotslog.jsonl
-   RejectedAddUrllog: ../log/rejectedaddurl.log
 #  Facetlog: facet.log
 
 Testing:
