@@ -13,6 +13,7 @@ class Req():
         self.post = post
         self.cookies = None
         self.multipart_post = False
+        self.headers = {}
 
     def default_config(self):
         return dict(
@@ -44,6 +45,15 @@ class Req():
 
     def set_url(self,url):
         self.url = URL(url)
+
+    def update_headers(self,val):
+        if isinstance(val,dict):
+            self.headers.update(val)
+        else:
+            raise ValueError('--> Value must be dict')
+
+    def set_useragent(self,val):
+        self.update_headers({'User-Agent':val})
 
     def reset(self):
         self.cookies = None

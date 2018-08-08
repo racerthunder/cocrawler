@@ -330,6 +330,11 @@ class Crawler:
         # if cw and not cw.done():
         #     cw.cancel()
 
+    def on_finish(self):
+        # this is the last method is called before exiting program
+        # make external methods calls here, since crawler calls 'exit'
+        pass
+
     async def close(self):
         stats.report()
         parse.report()
@@ -1021,5 +1026,7 @@ class Crawler:
             loop.stop()
             loop.run_forever()
             loop.close()
+            cruzer.on_finish()
+
 
         exit(stats.exitstatus)

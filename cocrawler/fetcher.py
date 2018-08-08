@@ -121,6 +121,12 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
         with stats.coroutine_state(stats_prefix+'fetcher fetching'):
             with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
 
+                if len(req.headers):
+                    if headers is None:
+                        headers = req.headers
+                    else:
+                        headers.update(req.headers)
+
                 if req.cookies is not None:
 
                     if isinstance(session.cookie_jar,aiohttp.DummyCookieJar):
