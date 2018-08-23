@@ -46,7 +46,7 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            #url = 'https://asdfasdlkfjasasdfasdfasdf.com'
+            url = 'http://order-cialis-overnight.com'
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -55,7 +55,7 @@ class Cruzer(cocrawler.Crawler):
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            #break
+            break
             #
             if counter > 100:
                 break
@@ -63,12 +63,9 @@ class Cruzer(cocrawler.Crawler):
     def task_download(self,task):
 
 
-
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            #print(vars(req))
-            req = Req(task.last_url + '?id=1')
-            #yield Task(name='second',req=req)
+            #print(task.doc.html)
 
         else:
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
@@ -85,7 +82,7 @@ class Cruzer(cocrawler.Crawler):
 
 if __name__ == '__main__':
     '''
-    command line args example: --config Crawl.MaxWorkers:15 --loglevel INFO --reuse_session
+    command line args example: --config Fetcher.Nameservers:8.8.8.8 --loglevel INFO --reuse_session
     '''
     Cruzer.run()
 

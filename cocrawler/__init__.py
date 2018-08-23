@@ -123,6 +123,7 @@ class Crawler:
         self.version = '0.1' # workaround for cli running setup
         self.robotname, self.ua = useragent.useragent(self.version)
 
+
         self.resolver = dns.get_resolver()
 
         geoip.init()

@@ -43,8 +43,8 @@ Crawl:
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
-  UpgradeInsecureRequests: 1
-  ConnectTimeout: 2  # seconds, 0.=none
+#  UpgradeInsecureRequests: 1
+  ConnectTimeout: 5  # seconds, 0.=none
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None

@@ -6,6 +6,7 @@ import time
 import logging
 import urllib
 import ipaddress
+import collections.abc
 
 import cachetools
 import aiohttp
@@ -143,14 +144,27 @@ def expire_some(t, lru, some, stats_prefix=''):
 
 def get_ns():
 
-    files = config.read('Fetcher', 'Nameservers').get('File')
-
     ns_list = []
-    for file_name in files:
-        config_dir =  Path(__file__).parent.parent / 'data'
-        full_file_path = config_dir / file_name
-        ls = [line.strip() for line in full_file_path.open(encoding='utf-8') if len(line)>1 and '#' not in line]
-        ns_list.extend(ls)
+
+    files = config.read('Fetcher', 'Nameservers')
+    if isinstance(files, collections.abc.Sequence):
+        # ns is passed via ARG
+        if isinstance(files,list):
+            ns_list.extend(files)
+
+        elif isinstance(files,str):
+            ns_list.append(files)
+
+        else:
+            raise TypeError('--> unknow option for ns: {0}'.format(files))
+    else:
+        # read ns file specified in config
+        file_names = files.get('File')
+        for file_name in file_names:
+            config_dir =  Path(__file__).parent.parent / 'data'
+            full_file_path = config_dir / file_name
+            ls = [line.strip() for line in full_file_path.open(encoding='utf-8') if len(line)>1 and '#' not in line]
+            ns_list.extend(ls)
 
     return ns_list
 
