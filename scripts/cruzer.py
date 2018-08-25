@@ -46,7 +46,7 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            url = 'http://order-cialis-overnight.com'
+            url = 'http://buy-zyban-online.com?id={0}'.format(counter)
 
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -55,9 +55,8 @@ class Cruzer(cocrawler.Crawler):
             #req.set_cookie(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-            break
             #
-            if counter > 100:
+            if counter > 0:
                 break
 
     def task_download(self,task):

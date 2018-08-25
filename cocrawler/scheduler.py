@@ -21,6 +21,7 @@ import pympler.asizeof
 
 from . import config
 from . import stats
+from . import memory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ class Scheduler:
         self.delta_t = 1./self.maxhostqps
         self.initialize_budgets()
         self.robots = robots
+
+        memory.register_debug(self.memory)
 
     def initialize_budgets(self):
         self.budgets = {}
@@ -64,15 +67,12 @@ class Scheduler:
             return None
 
     def check_budgets(self, url):
-        hb = self.check_budget('host_budget', url.hostname_without_www)
-        if hb is not None:
-            return hb
-        db = self.check_budget('domain_budget', url.registered_domain)
-        if db is not None:
-            return db
-        gb = self.check_budget('global_budget', None)
-        if gb is not None:
-            return gb
+        for budget, arg in (('host_budget', url.hostname_without_www),
+                            ('domain_budget', url.registered_domain),
+                            ('global_budget', None)):
+            b = self.check_budget(budget, arg)
+            if b is not None:
+                return b
         return True
 
     def max_crawled_urls_exceeded(self):
@@ -310,4 +310,11 @@ class Scheduler:
         ridealong = {}
         ridealong['bytes'] = pympler.asizeof.asizesof(self.ridealong)[0]
         ridealong['len'] = len(self.ridealong)
-        return {'q': q, 'ridealong': ridealong}
+        next_fetch = {}
+        next_fetch['bytes'] = pympler.asizeof.asizesof(self.next_fetch)[0]
+        next_fetch['len'] = len(self.next_fetch)
+        frozen_until = {}
+        frozen_until['bytes'] = pympler.asizeof.asizesof(self.frozen_until)[0]
+        frozen_until['len'] = len(self.frozen_until)
+        return {'q': q, 'ridealong': ridealong,
+                'next_fetch': next_fetch, 'frozen_until': frozen_until}

@@ -1,63 +1,33 @@
-# datalayer, naieve implemenetion.
-# all in-process-memory
-
-# database layer spec
-
-# domain database
-# host database
-#   counters: urls crawled, urls in queue, seen urls, hostrank info like unique incoming C's
-#   data: landing pages and their anchortext? or in the url db
-#   politeness: current value, last 3 maxes, last N outcomes
-#    outcome: 5xx, 4xx, 200, slow-200
-#    remember the averages for last 10,100,1000,10k,100k,1mm fetches
-# url database
-#   seen urls can be a bloom filter
-#    one of the ones in pypi does % error, 10 billion @ 0.1% was 17 gigabytes
-#   surt url, last-crawl-date, ranking counters
-#    can minimize size by only recording details for externally linked urls
-# per-host crawl frontiers ordered by rank?
-#   lossy? refresh by iterating over url database
-#   python Queue is single-process and not ranked
-# robots cache, with timeout
-# path to seed - naive or accurate?
-
 import pickle
 import logging
-# import sortedcontainers - I wish! not sure if cachetools.ttl is as efficient
 import cachetools.ttl
 
 import pympler.asizeof
 
 from . import config
+from . import memory
 
 LOGGER = logging.getLogger(__name__)
-__NAME__ = 'datalayer crawled memory'
+__NAME__ = 'datalayer seen memory'
 
 
 class Datalayer:
     def __init__(self):
-        self.crawled_set = set()
+        self.seen_set = set()
 
         robots_size = config.read('Robots', 'RobotsCacheSize')
         robots_ttl = config.read('Robots', 'RobotsCacheTimeout')
         self.robots = cachetools.ttl.TTLCache(robots_size, robots_ttl)
 
-    # This is the minimum url database:
-    # as part of a "should we add this url to the queue?" process,
-    # we need to remember all queued urls.
+        memory.register_debug(self.memory)
 
-    def add_crawled(self, url):
-        self.crawled_set.add(url.surt)
+    def add_seen(self, url):
+        '''A "seen" url is one that we've done something with, such as having
+        queued it or already crawled it.'''
+        self.seen_set.add(url.surt)
 
-    def crawled(self, url):
-        # do this with a honking bloom filter?
-        # notice when an url without cgi args is popular, maybe probe to
-        # see if we can guess tracking args vs real ones.
-        return url.surt in self.crawled_set
-
-    # collections.TTLCache is built on collections.OrderedDict and not sortedcontainers :-(
-    # so it may need replacing if someone wants to do a survey crawl
-    # XXX may need to become async so other implemtations can do an outcall?
+    def seen(self, url):
+        return url.surt in self.seen_set
 
     def cache_robots(self, schemenetloc, parsed):
         self.robots[schemenetloc] = parsed
@@ -67,7 +37,7 @@ class Datalayer:
 
     def save(self, f):
         pickle.dump(__NAME__, f)
-        pickle.dump(self.crawled_set, f)
+        pickle.dump(self.seen_set, f)
         # don't save robots cache
 
     def load(self, f):
@@ -75,19 +45,18 @@ class Datalayer:
         if name != __NAME__:
             LOGGER.error('save file name does not match datalayer name: %s != %s', name, __NAME__)
             raise ValueError
-        self.crawled_set = pickle.load(f)
+        self.seen_set = pickle.load(f)
 
     def summarize(self):
-        '''
-        print a human-readable sumary of what's in the datalayer
-        '''
-        print('{} crawled'.format(len(self.crawled_set)))
+        '''Print a human-readable sumary of what's in the datalayer'''
+        print('{} seen'.format(len(self.seen_set)))
 
     def memory(self):
-        '''
-        Return a dict summarizing the datalayer's memory usage
-        '''
-        crawled_set = {}
-        crawled_set['bytes'] = pympler.asizeof.asizesof(self.crawled_set)[0]
-        crawled_set['len'] = len(self.crawled_set)
-        return {'crawled_set': crawled_set}
+        '''Return a dict summarizing the datalayer's memory usage'''
+        seen_set = {}
+        seen_set['bytes'] = pympler.asizeof.asizesof(self.seen_set)[0]
+        seen_set['len'] = len(self.seen_set)
+        robots = {}
+        robots['bytes'] = pympler.asizeof.asizesof(self.robots)[0]
+        robots['len'] = len(self.robots)
+        return {'seen_set': seen_set, 'robots': robots}

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import cocrawler.config as config
 
 
@@ -13,6 +15,17 @@ def test_merge_dicts():
     c = config.merge_dicts(a, b)
 
     assert c == {'a': {'a': 1}, 'b': {'b': 2, 'c': 3}}
+
+
+def test_make_list():
+    configfile = 'foo'
+    ret = ['foo',
+           '/home/kilroy/bar/.cocrawler-config.yml',
+           '/home/kilroy/.cocrawler-config.yml',
+           '/home/.cocrawler-config.yml']
+
+    with mock.patch('cocrawler.config.os.getcwd', return_value='/home/kilroy/bar'):
+        assert config.make_list(configfile) == ret
 
 
 def test_type_fixup():
@@ -42,11 +55,11 @@ def main():
 
     args = ARGS.parse_args()
 
-    config.config(args.configfile, args.config, confighome=not args.no_confighome)
+    config.config(args.configfile, args.config)
 
     #print(config.print_final())
 
-    ns = config.read('Fetcher', 'Nameservers')
+    ns = config.read('Fetcher', 'DNSWarmupLog')
     d = config.read('Crawl', 'MaxDepth')
 
     print(ns)

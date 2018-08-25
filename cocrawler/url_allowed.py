@@ -5,7 +5,10 @@ Generic implementation of url_allowed.
 import logging
 from collections import defaultdict
 
+import pympler
+
 from . import config
+from . import memory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +39,7 @@ not_text_extension = set(('jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
 
 # not yet used
 text_extension = set(('txt', 'html', 'php', 'htm', 'aspx', 'asp', 'shtml', 'jsp'))
+text_embed_extension = set(('js', 'css'))
 
 
 def extension_allowed(url):
@@ -89,7 +93,7 @@ def url_allowed(url):
     return url
 
 
-valid_policies = {'SeedsDomain': set(), 'SeedsHostname': set(), 'SeedsPrefix': defaultdict(list),
+valid_policies = {'SeedsDomain': set(), 'SeedsHostname': set(), 'SeedsPrefix': defaultdict(set),
                   'OnlySeeds': set(), 'AllDomains': None}
 
 
@@ -105,7 +109,12 @@ def setup(policy=None):
     LOGGER.info('url_allowed policy: %s', POLICY)
 
     global SEEDS
-    SEEDS = valid_policies[POLICY]
+    if valid_policies[POLICY] is not None:
+        SEEDS = valid_policies[POLICY].copy()
+    else:
+        SEEDS = None
+
+    memory.register_debug(mymemory)
 
 
 def setup_seeds(seeds):
@@ -117,7 +126,16 @@ def setup_seeds(seeds):
             SEEDS.add(s.hostname_without_www)
     elif POLICY == 'SeedsPrefix':
         for s in seeds:
-            SEEDS[s.hostname_without_www].append(s.urlsplit.path)
+            SEEDS[s.hostname_without_www].add(s.urlsplit.path)
+        # get rid of longer duplicates
+        for h in SEEDS:
+            print('trimming host', h)
+            for s1 in list(SEEDS[h]):
+                for s2 in list(SEEDS[h]):
+                    print('checking', s1, s2)
+                    if s1 != s2 and s1.startswith(s2):
+                        print('dumping seed', s1)
+                        SEEDS[h].discard(s1)
     elif POLICY == 'OnlySeeds':
         for s in seeds:
             SEEDS.add(s.url)
@@ -126,3 +144,13 @@ def setup_seeds(seeds):
         LOGGER.debug('Seed list:')
         for s in seeds:  # only print the new ones
             LOGGER.debug('  Seed: %s', s)
+
+
+def mymemory():
+        '''
+        Return a dict summarizing the our memory usage
+        '''
+        seeds = {}
+        seeds['bytes'] = pympler.asizeof.asizesof(SEEDS)[0]
+        seeds['len'] = len(SEEDS)
+        return {'seeds': seeds}

@@ -6,8 +6,8 @@ import time
 import os
 import random
 import socket
-# from pkg_resources import get_distribution, DistributionNotFound
-# from setuptools_scm import get_version
+from pkg_resources import get_distribution, DistributionNotFound
+from setuptools_scm import get_version
 import json
 import traceback
 import concurrent
@@ -48,12 +48,14 @@ from . import config
 from . import warc
 from . import dns
 from . import geoip
+from . import memory
 
 from . import stats
 from . import timer
 from . import webserver
 
 from . sessions import SessionPool
+from . dns_warmup import Warmupper
 
 
 LOGGER = logging.getLogger(__name__)
@@ -98,11 +100,13 @@ class Crawler:
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
+        self.ns_alive = Warmupper(self.loop).looper()
         self.burner = burner.Burner('parser')
         self.stopping = False
         self.paused = paused
         self.no_test = no_test
-        self.next_minute = time.time() + 60
+        self.next_minute = 0
+        self.next_hour = time.time() + 3600
         self.max_page_size = int(config.read('Crawl', 'MaxPageSize'))
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
@@ -124,7 +128,7 @@ class Crawler:
         self.robotname, self.ua = useragent.useragent(self.version)
 
 
-        self.resolver = dns.get_resolver()
+        self.resolver = dns.get_resolver(self.ns_alive)
 
         geoip.init()
 
@@ -211,13 +215,19 @@ class Crawler:
                 stats.stats_max('initial seeds', self.scheduler.qsize())
 
         self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{}'.format(os.getpid()))
-        self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{}'.format(os.getpid()))
-
         LOGGER.info('Touch %s to stop the crawler.', self.stop_crawler)
+
+        self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{}'.format(os.getpid()))
         LOGGER.info('Touch %s to pause the crawler.', self.pause_crawler)
 
+        self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{}'.format(os.getpid()))
+        LOGGER.info('Use %s to debug objects in the crawler.', self.memory_crawler)
+
+        fetcher.establish_filters()
+
     def __del__(self):
-        self.connector.close()
+        if hasattr(self, 'connector'):
+            self.connector.close()
 
     def shutdown(self):
         stats.coroutine_report()
@@ -240,7 +250,7 @@ class Crawler:
             print(url.url, file=self.frontierlogfd)
 
 
-    async def add_url(self, priority, ridealong):
+    async def add_url(self, priority, ridealong, rand=None):
         # XXX eventually do something with the frag - record as a "javascript-needed" clue
 
         # XXX optionally generate additional urls plugin here
@@ -280,7 +290,7 @@ class Crawler:
             pass
         elif priority > int(config.read('Crawl', 'MaxDepth')):
             reason = 'rejected by MaxDepth'
-        elif 'skip_crawled' not in ridealong and self.datalayer.crawled(url):
+        elif 'skip_crawled' not in ridealong and self.datalayer.seen(url):
             reason = 'rejected by crawled'
         elif not self.scheduler.check_budgets(url):
             # the budget is debited here, so it has to be last
@@ -288,7 +298,7 @@ class Crawler:
 
         if 'skip_crawled' in ridealong:
             self.log_frontier(url)
-        elif not self.datalayer.crawled(url):
+        elif not self.datalayer.seen(url):
             self.log_frontier(url)
 
         if reason:
@@ -307,10 +317,10 @@ class Crawler:
 
         ridealong['priority'] = priority
 
-        # to randomize fetches, and sub-prioritize embeds
-        if ridealong.get('embed'):
-            rand = 0.0
-        else:
+        # to randomize fetches
+        # already set for a freeredir
+        # could be used to sub-prioritize embeds
+        if rand is None:
             rand = random.uniform(0, 0.99999)
 
         #self.scheduler.set_ridealong(url.surt, ridealong)
@@ -320,7 +330,7 @@ class Crawler:
         self.scheduler.set_ridealong(ridealong['task'].req.url.surt, ridealong)
         await self.scheduler.queue_work((priority, rand, ridealong['task'].req.url.surt))
 
-        self.datalayer.add_crawled(url)
+        self.datalayer.add_seen(url)
         return 1
 
     def cancel_workers(self):
@@ -338,6 +348,7 @@ class Crawler:
 
     async def close(self):
         stats.report()
+        memory.print_summary(self.memory_crawler)
         parse.report()
         stats.check(no_test=self.no_test)
         stats.check_collisions()
@@ -390,7 +401,11 @@ class Crawler:
         if 'url' not in ridealong:
             raise ValueError('missing ridealong for surt '+surt)
         url = ridealong['url']
-        seed_host = ridealong.get('seed_host', None)
+        seed_host = ridealong.get('seed_host')
+        if seed_host and ridealong.get('seed'):
+            robots_seed_host = seed_host
+        else:
+            robots_seed_host = None
 
         req_headers, proxy, mock_url, mock_robots = fetcher.apply_url_policies(url, self)
 
@@ -419,14 +434,15 @@ class Crawler:
                 post_fetch.post_dns(addrs, expires, url, self)
 
 
+
         # ---> brc, skip section <---
         if not self.mode == 'cruzer':
-            r = await self.robots.check(url, host_geoip, seed_host, self,
+            r = await self.robots.check(url, host_geoip=host_geoip, seed_host=robots_seed_host, crawler=self,
                                         headers=req_headers, proxy=proxy, mock_robots=mock_robots)
             if not r:
                 # really, we shouldn't retry a robots.txt rule failure
                 # but we do want to retry robots.txt failed to fetch
-                await self._retry_if_able(work, ridealong)
+                self._retry_if_able(work, ridealong)
                 return
         # ---> end skip section <--
 
@@ -467,7 +483,7 @@ class Crawler:
         json_log['status'] = f.response.status
 
         if post_fetch.is_redirect(f.response):
-            __ridealong = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, seed_host=seed_host)
+            __ridealong = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, rand=rand)
             # meta-http-equiv-redirect will be dealt with in post_fetch
             if __ridealong and __ridealong == 'no_valid_redir':
                 fr_dummy = namedtuple('fr_dummy','response last_exception')
@@ -713,18 +729,27 @@ class Crawler:
         '''
         print interesting stuff, once a minute + close all finished sessions
         '''
-        if time.time() > self.next_minute:
-            self.next_minute = time.time() + 60
-            stats.stats_set('DNS cache size', self.resolver.size())
-            if self.reuse_session:
-                stats.stats_set('Sessions Pool size',self.pool.size())
-            stats.report()
-            stats.coroutine_report()
-            if config.read('Crawl', 'DebugMemory'):
-                self.memory()
-            if self.reuse_session:
-                await self.pool.close_or_wait()
+        if time.time() < self.next_minute:
+            return
 
+        self.next_minute = time.time() + 60
+        stats.stats_set('DNS cache size', self.resolver.size())
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        vmem = (ru[2])/1000000.  # gigabytes
+        stats.stats_set('main thread vmem', vmem)
+        stats.report()
+        stats.coroutine_report()
+        memory.print_summary(self.memory_crawler)
+        if self.reuse_session:
+            await self.pool.close_or_wait()
+
+    def hour(self):
+        '''Do something once per hour'''
+        if time.time() < self.next_hour:
+            return
+
+        self.next_hour = time.time() + 3600
+        pass
 
     def update_cpu_stats(self):
         elapsedc = time.clock()  # should be since process start
@@ -836,9 +861,11 @@ class Crawler:
         '''
         Run the crawler until it's out of work
         '''
-        self.producer = asyncio.Task(self.queue_producer())
+        await self.minute()  # print pre-start stats
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
+        self.producer = asyncio.Task(self.queue_producer())
+
 
         self.workers = [asyncio.Task(self.work()) for _ in range(self.max_workers)]
         self.deffered_queue_checker = asyncio.Task(self.deffered_queue_processor())
@@ -897,12 +924,10 @@ class Crawler:
 
             self.update_cpu_stats()
             # show stats and close finished sessions
-            await self.minute()
+            #await self.minute()
+            #self.hour()
 
 
-
-        if config.read('Crawl', 'DebugMemory'):
-            self.memory()
 
         self.cancel_workers()
         self.producer.cancel()
@@ -964,7 +989,7 @@ class Crawler:
         loglevel = os.getenv('COCRAWLER_LOGLEVEL') or args.loglevel
         logging.basicConfig(level=loglevel)
 
-        config.config(args.configfile, args.config, confighome=not args.no_confighome)
+        config.config(args.configfile, args.config)
 
         cls.limit_resources()
 

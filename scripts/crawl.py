@@ -4,7 +4,6 @@
 CoCrawler web crawler, main program
 '''
 import sys
-import resource
 import os
 import faulthandler
 import gc
@@ -19,6 +18,7 @@ import cocrawler.config as config
 import cocrawler.stats as stats
 import cocrawler.timer as timer
 import cocrawler.webserver as webserver
+import cocrawler.memory as memory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,24 +30,9 @@ ARGS.add_argument('--configfile', action='store', default='/Volumes/crypt/_Codin
 ARGS.add_argument('--no-confighome', action='store_true')
 ARGS.add_argument('--no-test', action='store_true')
 ARGS.add_argument('--printdefault', action='store_true')
+ARGS.add_argument('--printfinal', action='store_true')
 ARGS.add_argument('--loglevel', action='store', default='INFO')
 ARGS.add_argument('--load', action='store')
-
-
-def limit_resources():
-    _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    # XXX warn if too few compared to max_wokers?
-    resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
-
-    _, hard = resource.getrlimit(resource.RLIMIT_AS)  # RLIMIT_VMEM does not exist?!
-    rlimit_as = int(config.read('System', 'RLIMIT_AS_gigabytes'))
-    rlimit_as *= 1024 * 1024 * 1024
-    if rlimit_as == 0:
-        return
-    if hard > 0 and rlimit_as > hard:
-        LOGGER.error('RLIMIT_AS limited to %d bytes by system limit', hard)
-        rlimit_as = hard
-    resource.setrlimit(resource.RLIMIT_AS, (rlimit_as, hard))
 
 
 def main():
@@ -64,9 +49,13 @@ def main():
     loglevel = os.getenv('COCRAWLER_LOGLEVEL') or args.loglevel
     logging.basicConfig(level=loglevel)
 
-    config.config(args.configfile, args.config, confighome=not args.no_confighome)
+    config.config(args.configfile, args.config)
 
-    #limit_resources()
+    if args.printfinal:
+        config.print_final()
+        sys.exit(1)
+
+    #memory.limit_resources()
 
     if os.getenv('PYTHONASYNCIODEBUG') is not None:
         logging.captureWarnings(True)
@@ -106,7 +95,6 @@ def main():
     except KeyboardInterrupt:
         sys.stderr.flush()
         print('\nInterrupt. Exiting cleanly.\n')
-        stats.coroutine_report()
         crawler.cancel_workers()
     finally:
         loop.run_until_complete(crawler.close())

@@ -1,0 +1,8 @@
+root: True
+
+
+UserAgent:
+  Style: laptopplus
+  MyPrefix: pytest
+  URL: https://github.com/cocrawler/cocrawler
+

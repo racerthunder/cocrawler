@@ -43,12 +43,13 @@ Crawl:
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
-#  UpgradeInsecureRequests: 1
-  ConnectTimeout: 5  # seconds, 0.=none
+  UpgradeInsecureRequests: 1  # send this http header
+  ConnectTimeout: 0.  # seconds, 0.=none
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None
-#  DebugMemory: True
+  QueueEmbeds: False
+  DebugMemory: False
 
 UserAgent:
   Style: crawler
@@ -57,7 +58,7 @@ UserAgent:
   UA: Googlebot/2.1 (+http://www.google.com/bot.html)
 Robots:
   MaxTries: 4
-  RobotsCacheSize: 1000
+  RobotsCacheSize: 100000  # 40mb-ish
   RobotsCacheTimeout: 86400
   MaxRobotsPageSize: 500000
 
@@ -65,6 +66,12 @@ Fetcher:
   Nameservers:
    File:
    - dns.txt
+  DNSWarmupLog: dns_log.pickle
+  DNSWarmupInterval: 3 # days, how often to check all ns servers
+  DNSMinAlive: 5 # min number of alive ns to allow work
+  DNSTimeout: 2 # seconds, max time for check
+  DNSWarmupDomain: mail.ru # domain to query ns agains
+   
   NameserverTries: 10
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
@@ -127,54 +134,60 @@ def print_default():
 
 
 def print_final():
-    print(repr(__global_config))
+    print(yaml.dump(__global_config))
 
 
 def merge_dicts(a, b):
     '''
-    Merge 2-level dict b into a, b overwriting a if present.
-    Not very general purpose!
-    XXX does having c here actually do anything? is c=a a
+    Merge 2-level dict b into a, b values overwriting a if present.
+    Changes a.
     '''
-    c = a
     for k1 in b:
-        for k2 in b[k1]:
-            v = b[k1][k2]
-            if k1 not in c or not c[k1]:
-                c[k1] = {}
-            if k2 not in c[k1]:
-                c[k1][k2] = {}
-            c[k1][k2] = v
-    return c
+        if k1 not in a:
+            a[k1] = {}
+        a[k1].update(b[k1])
+    return a
 
 
-def config(configfile, configlist, confighome=True):
+def make_list(configfile):
+    cwd = os.getcwd().split('/')
+
+    filelist = []
+    if configfile:
+        filelist.append(configfile)
+    for x in range(len(cwd), 1, -1):
+        filelist.append('/'.join(cwd[0:x]) + '/.cocrawler-config.yml')
+    return filelist
+
+
+def load_files(configfile):
+    filelist = make_list(configfile)
+    combined = {}
+
+    for f in filelist:
+        if os.path.isfile(f):
+            LOGGER.info('loading %s', f)
+            with open(f, 'r') as c:
+                from_file = yaml.safe_load(c)
+                root = from_file.get('root', False)
+                if 'root' in from_file:
+                    del from_file['root']
+                combined = merge_dicts(combined, from_file)
+                if root:  # it was actually true
+                    LOGGER.info('saw root=True in %s', f)
+                    break
+    return combined
+
+
+def config(configfile, configlist):
     '''
     Return a config dict which is the sum of all the various configurations
     '''
 
     default = yaml.safe_load(default_yaml)
 
-    config_from_file = {}
-    if configfile:
-        LOGGER.info('loading %s', configfile)
-        try:
-            with open(configfile, 'r') as c:
-                config_from_file = yaml.safe_load(c)
-        except FileNotFoundError:
-            LOGGER.error('configfile %s not found', configfile)
-            exit(1)
-
-    combined = merge_dicts(default, config_from_file)
-
-    homefile = os.path.expanduser('~/.cocrawler-config.yml')
-    if confighome and os.path.exists(homefile):
-        LOGGER.info('loading ~/.cocrawler-config.yml')
-        with open(homefile, 'r') as c:
-            config_from_file = yaml.safe_load(c)
-        combined = merge_dicts(combined, config_from_file)
-    elif confighome:
-        LOGGER.info('~/.cocrawler-config.yml not found')
+    file_config = load_files(configfile)
+    combined = merge_dicts(default, file_config)
 
     if configlist:
         for c in configlist:

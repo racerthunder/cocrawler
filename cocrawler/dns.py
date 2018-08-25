@@ -11,10 +11,12 @@ import collections.abc
 import cachetools
 import aiohttp
 import aiodns
+import pympler
 
 from . import stats
 from . import config
 from pathlib import Path
+from . import memory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +29,15 @@ async def prefetch(url, resolver):
             except OSError:  # mapped to aiodns.error.DNSError if it was a .get
                 stats.stats_sum('prefetch DNS error', 1)
                 return None
+
+            except UnicodeError as e:
+                stats.stats_sum('prefetch DNS unicode error', 1)
+                LOGGER.info('UnicodeError prefetching dns for %s: %s', url.hostname, str(e))
+                return None
+            except ValueError:
+                stats.stats_sum('prefetch DNS no A records found', 1)
+                return None
+
     return resolver.get_cache_entry(url.hostname)
 
 
@@ -46,6 +57,8 @@ class CoCrawler_Caching_AsyncResolver(aiohttp.resolver.AsyncResolver):
         self._cachemaxsize = config.read('Fetcher', 'DNSCacheMaxSize')
         self._cache = cachetools.LRUCache(int(self._cachemaxsize))
         self._refresh_in_progress = set()
+
+        memory.register_debug(self.memory)
 
     async def resolve(self, host, port, stats_prefix='fetch ', **kwargs):
         t = time.time()
@@ -130,6 +143,12 @@ class CoCrawler_Caching_AsyncResolver(aiohttp.resolver.AsyncResolver):
     def size(self):
         return len(self._cache)
 
+    def memory(self):
+        resolver_cache = {}
+        resolver_cache['bytes'] = pympler.asizeof.asizesof(self._cache)[0]
+        resolver_cache['len'] = len(self._cache)
+        return {'resolver_cache': resolver_cache}
+
 
 def expire_some(t, lru, some, stats_prefix=''):
     # examine a few of the oldest entries to see if they're expired
@@ -143,7 +162,7 @@ def expire_some(t, lru, some, stats_prefix=''):
             break
 
 def get_ns():
-
+    raise DeprecationWarning('--> left for relic for simetime')
     ns_list = []
 
     files = config.read('Fetcher', 'Nameservers')
@@ -163,14 +182,20 @@ def get_ns():
         for file_name in file_names:
             config_dir =  Path(__file__).parent.parent / 'data'
             full_file_path = config_dir / file_name
+
+            if not full_file_path.exists():
+                raise ValueError('--> No dns file found: {0}'.format(str(full_file_path)))
+
             ls = [line.strip() for line in full_file_path.open(encoding='utf-8') if len(line)>1 and '#' not in line]
             ns_list.extend(ls)
 
     return ns_list
 
-def get_resolver(**kwargs):
-    #ns = config.read('Fetcher', 'Nameservers')
-    ns = get_ns()
+def get_resolver(ns=None):
+
+    if ns is None:
+        raise ValueError('--> Ns should not be empty')
+
     ns_tries = config.read('Fetcher', 'NameserverTries')
     ns_timeout = config.read('Fetcher', 'NameserverTimeout')
 
@@ -272,3 +297,9 @@ async def query(host, qtype):
         raise RuntimeError('no nameservers configured')
 
     return await res.query(host, qtype)
+
+def warmup_dns():
+    # check dns servers every X days, only alive ns is left and once treshold is reached an error is raised
+    warmup_log = config.read('Fetcher','DNSWarmupLog')
+
+

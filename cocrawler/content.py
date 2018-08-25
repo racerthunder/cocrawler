@@ -24,10 +24,17 @@ def decompress(body_bytes, content_encoding):
         try:
             return zlib.decompress(body_bytes, zlib.MAX_WBITS)  # expects header/checksum
         except Exception:
-            # http://www.gzip.org/zlib/zlib_faq.html#faq38
-            return zlib.decompress(body_bytes, -zlib.MAX_WBITS)  # no header/checksum
+            try:
+                # http://www.gzip.org/zlib/zlib_faq.html#faq38
+                return zlib.decompress(body_bytes, -zlib.MAX_WBITS)  # no header/checksum
+            except Exception:
+                # never underestimate the power of positive thinking
+                return body_bytes
     elif content_encoding == 'gzip' or content_encoding == 'x-gzip':
-        return zlib.decompress(body_bytes, 16 + zlib.MAX_WBITS)
+        try:
+            return zlib.decompress(body_bytes, 16 + zlib.MAX_WBITS)
+        except Exception:
+            return body_bytes
     #elif content_encoding == 'br':
     #    return brotli.decompress(body_bytes)
     else:
@@ -39,7 +46,7 @@ def decompress(body_bytes, content_encoding):
 def parse_headers(resp_headers, json_log):
     content_type = resp_headers.get('content-type', '')
     # sometimes content_type comes back multiline. whack it with a wrench.
-    content_type = content_type.replace('\r', '\n').partition('\n')[0]
+    content_type = content_type.replace('\r', '\n').partition('\n')[0].lower()
     content_type, options = cgi.parse_header(content_type)
 
     json_log['content_type'] = content_type
