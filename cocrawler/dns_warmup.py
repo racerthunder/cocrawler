@@ -27,7 +27,7 @@ class Warmupper():
         self.warmup_log_path = self.config_dir / self.warmup_log_name
 
         self.ns_list = self.load_ns()
-        self.data = [None,None] # [time_last_check,alive_ns]
+        self.data = [None,None] # [time_last_check,(alive_ns,dead_ns)]
         self.read()
         self.today = datetime.datetime.today()
 
@@ -99,7 +99,8 @@ class Warmupper():
 
 
     async def run(self):
-        goods = None
+        goods = ()
+        bads = ()
         last_check = self.data[0]
         rewrite = False
         if last_check is not None:
@@ -124,7 +125,7 @@ class Warmupper():
             raise ValueError('--> not enough alive ns, total: {0}, required: {1}'.format(len(goods),self.min_alive))
 
         if rewrite:
-            self.save(str(self.warmup_log_path),self.today,goods)
+            self.save(str(self.warmup_log_path),self.today,(goods,bads))
 
         return goods
 

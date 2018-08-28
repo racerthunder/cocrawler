@@ -375,7 +375,9 @@ class Crawler:
             # XXX remember that this host had a hard fail
             stats.stats_sum('retries completely exhausted', 1)
             self.scheduler.del_ridealong(surt)
-
+            LOGGER.debug('--> retries completely exhausted = {0}, surt: {1}, domain: {2} '.format(
+                ridealong.get('retries_left', 0) - 1, surt, ridealong['task'].req.url.hostname
+            ))
             #seeds.fail(ridealong, self)
             return 'no_retries_left'
         # XXX jsonlog this soft fail
@@ -776,7 +778,9 @@ class Crawler:
         # add ref to cruzer instance so we have access to sessions pool
         task.cruzer = self
 
-        ride_along = {'url': task.req.url,'task':task,'skip_seen_url':True}
+        max_tries = config.read('Crawl', 'MaxTries')
+
+        ride_along = {'url': task.req.url,'task':task,'skip_seen_url':True,'retries_left': max_tries}
         return ride_along
 
     def task_generator(self):

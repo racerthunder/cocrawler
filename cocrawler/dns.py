@@ -298,8 +298,5 @@ async def query(host, qtype):
 
     return await res.query(host, qtype)
 
-def warmup_dns():
-    # check dns servers every X days, only alive ns is left and once treshold is reached an error is raised
-    warmup_log = config.read('Fetcher','DNSWarmupLog')
 
 
