@@ -169,17 +169,15 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
                         post_data = _generate_form_data(multipart_post=req.multipart_post,**req.post)
                     else:
                         post_data = req.post
-
-                    response = await session.post(mock_url or url.url,
-                                             allow_redirects=allow_redirects,
-                                             max_redirects=max_redirects,
-                                             headers=headers,data=post_data)
-
                 else:
-                    response = await session.get(mock_url or url.url,
-                                                 allow_redirects=allow_redirects,
-                                                 max_redirects=max_redirects,
-                                                 headers=headers)
+                    post_data = None
+
+                response = await session.request(req.method,mock_url or url.url,
+                                         allow_redirects=allow_redirects,
+                                         max_redirects=max_redirects,
+                                         headers=headers,data=post_data)
+
+
 
                 # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
                 # XXX should use tracing events to get t_first_byte

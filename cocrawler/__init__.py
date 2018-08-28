@@ -92,6 +92,13 @@ class CallbackHandler():
         self.partial()
         return await asyncio.sleep(0.1)
 
+class LoggedClientSession(aiohttp.ClientSession):
+    _logger = logging.getLogger('cocrawler.fetcher')
+
+    def request(self, method, url, **kwargs):
+        self._logger.debug('<%s %r>', method, url)
+        return super().request(method, url, **kwargs)
+
 class Crawler:
     def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
         self.mode = 'cruzer'
@@ -166,7 +173,7 @@ class Crawler:
 
             cookie_jar = aiohttp.DummyCookieJar()
 
-            _session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+            _session = LoggedClientSession(connector=self.connector, cookie_jar=cookie_jar,
                                              auto_decompress=False,timeout=self.timeout)
 
             self.pool.global_session=_session
@@ -801,7 +808,7 @@ class Crawler:
         :return: session id
         '''
         cookie_jar = aiohttp.CookieJar(unsafe=True)
-        __session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
+        __session = LoggedClientSession(connector=self.connector, cookie_jar=cookie_jar,
                                           timeout=self.timeout,auto_decompress=False,connector_owner=False)
         _id = id(__session)
 

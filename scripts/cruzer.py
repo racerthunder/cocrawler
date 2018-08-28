@@ -46,13 +46,13 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            url = 'https://httpbin.org/status/503'
+            url = 'https://httpbin.org/post'
 
             req = Req(url)
             domain = req.url.hostname_without_www
             #cookie = {'data':domain,'data2':'val2'}
 
-            #req.set_cookie(cookie)
+            #req.set_post(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
 
