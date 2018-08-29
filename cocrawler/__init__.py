@@ -424,6 +424,7 @@ class Crawler:
                     fr_dummy.response = None # required here
                     fr_dummy.last_exception = 'dns_no_entry'
                     await self.make_callback(ridealong,fr_dummy)
+                    self.scheduler.del_ridealong(surt)
                     return ridealong['task']
                 else:
                     # job requeued
@@ -438,14 +439,14 @@ class Crawler:
 
 
         # ---> brc, skip section <---
-        if not self.mode == 'cruzer':
-            r = await self.robots.check(url, host_geoip=host_geoip, seed_host=robots_seed_host, crawler=self,
-                                        headers=req_headers, proxy=proxy, mock_robots=mock_robots)
-            if not r:
-                # really, we shouldn't retry a robots.txt rule failure
-                # but we do want to retry robots.txt failed to fetch
-                self._retry_if_able(work, ridealong)
-                return
+        # if not self.mode == 'cruzer':
+        #     r = await self.robots.check(url, host_geoip=host_geoip, seed_host=robots_seed_host, crawler=self,
+        #                                 headers=req_headers, proxy=proxy, mock_robots=mock_robots)
+        #     if not r:
+        #         # really, we shouldn't retry a robots.txt rule failure
+        #         # but we do want to retry robots.txt failed to fetch
+        #         self._retry_if_able(work, ridealong)
+        #         return
         # ---> end skip section <--
 
         _session = self.pool.get_session(ridealong['task'].session_id)

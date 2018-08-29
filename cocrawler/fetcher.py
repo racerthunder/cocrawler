@@ -20,6 +20,7 @@ from collections import namedtuple
 import ssl
 import urllib
 import json
+from pprint import pformat
 
 import asyncio
 import logging
@@ -178,8 +179,8 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
                                          headers=headers,data=post_data)
 
 
-
-                LOGGER.debug('<{0} [{1}] {2}>'.format(req.method,response.status,url.url))
+                log_headers = pformat(dict(response.raw_headers),indent=10)
+                LOGGER.debug('<{0} [{1}] {2}> \n {3}'.format(req.method,response.status,url.url,log_headers))
 
                 # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
                 # XXX should use tracing events to get t_first_byte
