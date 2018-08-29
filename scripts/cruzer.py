@@ -50,9 +50,9 @@ class Cruzer(cocrawler.Crawler):
 
             req = Req(url)
             domain = req.url.hostname_without_www
-            #cookie = {'data':domain,'data2':'val2'}
+            cookie = {'data':domain,'data2':'val2'}
 
-            #req.set_post(cookie)
+            req.set_post(cookie)
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
 

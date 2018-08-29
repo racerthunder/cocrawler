@@ -179,6 +179,8 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
 
 
 
+                LOGGER.debug('<{0} [{1}] {2}>'.format(req.method,response.status,url.url))
+
                 # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
                 # XXX should use tracing events to get t_first_byte
                 t_first_byte = '{:.3f}'.format(time.time() - t0)
