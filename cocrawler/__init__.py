@@ -402,7 +402,9 @@ class Crawler:
         ridealong = self.scheduler.get_ridealong(surt)
         if 'url' not in ridealong:
             raise ValueError('missing ridealong for surt '+surt)
-        url = ridealong['url']
+
+        url = ridealong['task'].req.url
+
         seed_host = ridealong.get('seed_host')
         if seed_host and ridealong.get('seed'):
             robots_seed_host = seed_host
@@ -450,6 +452,7 @@ class Crawler:
         # ---> end skip section <--
 
         _session = self.pool.get_session(ridealong['task'].session_id)
+
 
         f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url)
@@ -586,7 +589,7 @@ class Crawler:
 
             else:
                 for task in iterator:
-                    ride_along = self.get_ridealong(task,parent_task=parent_task)
+                    ride_along = self.generate_ridealong(task,parent_task=parent_task)
                     LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
                     self.add_deffered_task(0,ride_along)
 
@@ -758,7 +761,7 @@ class Crawler:
         elapsedc = time.clock()  # should be since process start
         stats.stats_set('main thread cpu time', elapsedc)
 
-    def get_ridealong(self,task,parent_task=None):
+    def generate_ridealong(self,task,parent_task=None):
         # url = Url instance
 
         if parent_task is not None:
@@ -852,7 +855,7 @@ class Crawler:
                 traceback.print_exc()
                 break
 
-            ride_along = self.get_ridealong(task)
+            ride_along = self.generate_ridealong(task)
 
             await self.add_url(1,ride_along)
 
