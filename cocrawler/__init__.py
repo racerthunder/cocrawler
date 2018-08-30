@@ -259,7 +259,7 @@ class Crawler:
         # and a homepage add should add soft404 detection
         # and ...
 
-        url = ridealong['url']
+        url = ridealong['task'].req.url
 
         if self.mode != 'cruzer':
             if 'seed' in ridealong:
@@ -283,7 +283,7 @@ class Crawler:
             LOGGER.debug('url %s was modified to %s by url_allow.', url.url, allowed.url)
             stats.stats_sum('add_url modified by url_allowed', 1)
             url = allowed
-            ridealong['url'] = url
+            ridealong['task'].req.url = url
 
         '''
         if reason:
@@ -400,8 +400,8 @@ class Crawler:
         stats.stats_set('priority', priority+min(rand, 0.99))
 
         ridealong = self.scheduler.get_ridealong(surt)
-        if 'url' not in ridealong:
-            raise ValueError('missing ridealong for surt '+surt)
+        # if 'url' not in ridealong:
+        #     raise ValueError('missing ridealong for surt '+surt)
 
         url = ridealong['task'].req.url
 
@@ -784,7 +784,7 @@ class Crawler:
 
         max_tries = config.read('Crawl', 'MaxTries')
 
-        ride_along = {'url': task.req.url,'task':task,'skip_seen_url':True,'retries_left': max_tries}
+        ride_along = {'task':task,'skip_seen_url':True,'retries_left': max_tries}
         return ride_along
 
     def task_generator(self):
@@ -819,7 +819,7 @@ class Crawler:
                 priority, ridealong = self.deffered_queue.get_nowait()
 
                 await self.add_url(priority,ridealong)
-                LOGGER.debug('--> deffered task added, actual url: {0} , task domain: {1}'.format(ridealong['url'].url,
+                LOGGER.debug('--> deffered task added, actual url: {0} , task domain: {1}'.format(ridealong['task'].req.url,
                                                                                                ridealong['task'].req.url.hostname))
                 self.deffered_queue.task_done() # this wont be reached if the queue is empty
             except asyncio.queues.QueueEmpty:

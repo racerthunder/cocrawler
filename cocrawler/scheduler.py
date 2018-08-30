@@ -239,7 +239,7 @@ class Scheduler:
                 break
             priority, rand, surt = work
             ridealong = self.get_ridealong(surt)
-            print(json.dumps({'priority': priority, 'rand': rand, 'url': ridealong['url'].url}))
+            print(json.dumps({'priority': priority, 'rand': rand, 'url': ridealong['task'].req.url}))
 
     def summarize(self):
         '''

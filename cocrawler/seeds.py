@@ -167,7 +167,7 @@ def fail(ridealong, crawler):
     if 'seed' not in ridealong:
         return
 
-    url = ridealong['url']
+    url = ridealong['task'].req.url
     if 'second_chance_url' not in ridealong:
         LOGGER.info('Received a final failure for seed url %s', url.url)
         stats.stats_sum('seeds failed', 1)

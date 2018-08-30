@@ -113,7 +113,7 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
     minimal_facet_me(resp_headers, url, host_geoip, 'redir', json_log['time'], crawler,
                      seed_host=seed_host, location=next_url.url)
 
-    ridealong['url'] = next_url
+    ridealong['task'].req.url = next_url
 
     redir_kind = urls.special_redirect(url, next_url)
     samesurt = url.surt == next_url.surt
