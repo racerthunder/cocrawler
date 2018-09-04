@@ -179,9 +179,6 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
                                          headers=headers,data=post_data)
 
 
-                log_headers = pformat(dict(response.raw_headers),indent=10)
-                LOGGER.debug('<{0} [{1}] {2}> \n {3}'.format(req.method,response.status,url.url,log_headers))
-
                 # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
                 # XXX should use tracing events to get t_first_byte
                 t_first_byte = '{:.3f}'.format(time.time() - t0)
@@ -258,6 +255,8 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
         LOGGER.info('Saw surprising exception in fetcher working on %s:\n%s', mock_url or url.url, last_exception)
         traceback.print_exc()
 
+
+
     if last_exception is not None:
         LOGGER.debug('we failed working on %s, the last exception is %s', mock_url or url.url, last_exception)
         return FetcherResponse(None, None, None, None, None, False, last_exception)
@@ -277,6 +276,9 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
     # hsts header?
     # if ssl, check strict-transport-security header, remember max-age=foo part., other stuff like includeSubDomains
     # did we receive cookies? was the security bit set?
+
+    log_headers = None #pformat(dict(response.raw_headers),indent=10)
+    LOGGER.debug('<{0} [{1}] {2}> \n {3}'.format(req.method,response.status,url.url,log_headers or ''))
 
     return fr
 

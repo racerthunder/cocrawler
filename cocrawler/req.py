@@ -61,4 +61,16 @@ class Req():
         self.multipart_post = False
 
 
+def misc():
+    import attr
+    from attr import Factory
+
+    @attr.s
+    class TT():
+        s = ''
+
+if __name__ == '__main__':
+    misc()
+
+
 
