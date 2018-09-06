@@ -1,13 +1,14 @@
-from .urls import URL
+#from cocrawler.req import Req
 from weakref import WeakKeyDictionary
 from inspect import isfunction
-
+import types
 
 class ValidatorError(Exception):pass
 
 
+
 class Validator():
-    _types = [dict,list,str,bool,URL]
+    _types = [dict,list,str]
 
     def __init__(self,val):
         self.val = val
@@ -44,8 +45,7 @@ class SessionData():
 
     def __set__(self, instance, value):
 
-        if value is not None:
-            self.validator.validate(value)
+        self.validator.validate(value)
 
         self._data[instance] = value
 
@@ -54,48 +54,46 @@ class SessionData():
 
 
 
+
+
+
 class Req():
-    '''
-    class attributes directly change ClientSession
-    '''
-    url = SessionData(validator=URL)
-    post = SessionData(validator=dict)
-    cookies = SessionData(validator=dict)
-    multipart_post = SessionData(validator=bool)
-    headers = SessionData(validator=dict)
+    post = SessionData(validator=str)
 
-    def __init__(self, url, post=None, cookies=None, multipart_post=False, headers=None):
-
-        self.source_url = url
-        self.url = URL(self.source_url)
-
+    def __init__(self,post):
         self.post = post
-        self.cookies = cookies
-        self.multipart_post = multipart_post
-        self.headers = headers
 
-    @property
-    def method(self):
-        if self.post is not None:
-            return 'POST'
-        else:
-            return 'GET'
 
-    def update_headers(self,val):
-        if isinstance(val,dict):
-            self.headers.update(val)
-        else:
-            raise ValueError('--> Value must be dict')
+    @classmethod
+    def options(cls):
+        # all allowed option to pass to session
+        datas = [key for key,val in cls.__dict__.items() if isinstance(val,SessionData)]
+        return datas
 
-    def set_useragent(self,val):
-        self.update_headers({'User-Agent':val})
+    def __setattr__(self, key, value):
+        if key not in self.__class__.options():
+            raise KeyError('--> "{0}" option is not allowed'.format(key))
 
-    def reset(self):
-        self.headers = None
-        self.cookies = None
-        self.post = None
-        self.multipart_post = False
+        super().__setattr__(key,value)
 
 
 
+def main():
+    req = Req('http://tut.by')
+    req2 = Req('http://google.by')
 
+    req.post = 'dddd'
+    print(vars(req))
+    print(req.post)
+
+
+
+def misc():
+    from cocrawler.req import Req
+
+    req = Req('http://tut.by')
+    req.url = 'http://google.com'
+    print(req.url)
+if __name__ == '__main__':
+    #main()
+    misc()
