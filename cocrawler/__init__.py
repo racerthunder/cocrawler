@@ -117,12 +117,15 @@ class Crawler:
         self.deffered_queue = asyncio.Queue()
         self.pool = SessionPool() # keep all runnning sessions if reuse_session==True
 
+        #
         # try:
         #     # this works for the installed package
         #     self.version = get_distribution(__name__).version
         # except DistributionNotFound:
         #     # this works for an uninstalled git repo, like in the CI infrastructure
         #     self.version = get_version(root='..', relative_to=__file__)
+        #
+        self.warcheader_version = '0.99'
 
         self.version = '0.1' # workaround for cli running setup
         self.robotname, self.ua = useragent.useragent(self.version)
@@ -199,7 +202,7 @@ class Crawler:
         else:
             self.facetlogfd = None
 
-        self.warcwriter = warc.setup(self.version, local_addr)
+        self.warcwriter = warc.setup(self.version, self.warcheader_version, local_addr)
 
         url_allowed.setup()
 

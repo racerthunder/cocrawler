@@ -1,9 +1,10 @@
 '''
 Charset and encoding-related code
 '''
+import logging
 import zlib
 import codecs
-#import brotli
+import brotli
 import cgi
 
 from . import stats
@@ -13,12 +14,14 @@ try:
 except ImportError:  # pragma: no cover
     import chardet
 
+LOGGER = logging.getLogger(__name__)
+
 
 def get_accept_encoding():
-    return 'identity, deflate, gzip'  # br
+    return 'identity, deflate, gzip, br'
 
 
-def decompress(body_bytes, content_encoding):
+def decompress(body_bytes, content_encoding, url=None):
     content_encoding = content_encoding.lower()
     if content_encoding == 'deflate':
         try:
@@ -26,20 +29,29 @@ def decompress(body_bytes, content_encoding):
         except Exception:
             try:
                 # http://www.gzip.org/zlib/zlib_faq.html#faq38
+                stats.stats_sum('content-encoding deflate fallback try', 1)
                 return zlib.decompress(body_bytes, -zlib.MAX_WBITS)  # no header/checksum
-            except Exception:
-                # never underestimate the power of positive thinking
+            except Exception as e:
+                LOGGER.debug('deflate fail for url %s: %s', url, str(e))
+                stats.stats_sum('content-encoding deflate fail', 1)
                 return body_bytes
     elif content_encoding == 'gzip' or content_encoding == 'x-gzip':
         try:
             return zlib.decompress(body_bytes, 16 + zlib.MAX_WBITS)
-        except Exception:
+        except Exception as e:
+            LOGGER.debug('gzip fail for url %s: %s', url, str(e))
+            stats.stats_sum('content-encoding gzip fail', 1)
             return body_bytes
-    #elif content_encoding == 'br':
-    #    return brotli.decompress(body_bytes)
+    elif content_encoding == 'br':
+        try:
+            return brotli.decompress(body_bytes)
+        except Exception as e:
+            LOGGER.debug('bz fail for url %s: %s', url, str(e))
+            stats.stats_sum('content-encoding brotli fail', 1)
+            return body_bytes
     else:
-        # fairly common to have 'raw' or 'none'
-        #raise ValueError('unknown content_encoding: '+content_encoding)
+        # 'identity' is in the standard
+        # also fairly common to have 'raw', 'none', or a charset
         return body_bytes
 
 
@@ -59,10 +71,15 @@ def parse_headers(resp_headers, json_log):
         charset = None
         stats.stats_sum('content-type-charset=' + 'not specified', 1)
 
-    content_encoding = resp_headers.get('content-encoding', 'identity')
+    content_encoding = resp_headers.get('content-encoding', 'identity').lower()
     if content_encoding != 'identity':
         json_log['content_encoding'] = content_encoding
         stats.stats_sum('content-encoding=' + content_encoding, 1)
+
+    transfer_encoding = resp_headers.get('transfer-encoding', 'identity').lower()
+    if transfer_encoding != 'identity':
+        json_log['transfer_encoding'] = transfer_encoding
+        stats.stats_sum('transfer-encoding=' + transfer_encoding, 1)
 
     return content_type, content_encoding, charset
 

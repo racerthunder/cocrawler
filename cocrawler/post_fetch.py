@@ -182,21 +182,23 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
 async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
 
-
-    if crawler.warcwriter is not None:  # needs to use the same algo as post_dns for choosing what to warc
-        # XXX insert the digest we already computed, instead of computing it again?
+    if crawler.warcwriter is not None:
+        # needs to use the same algo as post_dns for choosing what to warc
+        # insert the digest instead of computing it twice? see sha1 below
         # we delayed decompression so that we could warc the compressed body
         crawler.warcwriter.write_request_response_pair(url.url, f.req_headers,
-                                                       f.response.raw_headers, f.is_truncated, f.body_bytes)
+                                                       f.response.raw_headers, f.is_truncated, f.body_bytes,
+                                                       decompressed=False)
 
     resp_headers = f.response.headers
     content_type, content_encoding, charset = content.parse_headers(resp_headers, json_log)
 
-    html_types = set(('text/html', '', 'application/xml+html','application/json'))
+    html_types = set(('text/html', '', 'application/xhtml+xml'))
+
     if content_type in html_types:
         if content_encoding != 'identity':
             with stats.record_burn('response body decompress', url=url):
-                body_bytes = content.decompress(f.body_bytes, content_encoding)
+                body_bytes = content.decompress(f.body_bytes, content_encoding, url=url)
             stats.stats_sum('response body decompress bytes', len(body_bytes))
         else:
             body_bytes = f.body_bytes

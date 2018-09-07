@@ -15,14 +15,7 @@ from collections import OrderedDict
 from io import BytesIO
 import time
 
-import six
-
 from . import config
-
-try:
-    import collections.abc as collections_abc  # only works on python 3.3+
-except ImportError:
-    import collections as collections_abc
 
 from warcio.statusandheaders import StatusAndHeaders
 from warcio.warcwriter import WARCWriter
@@ -61,7 +54,7 @@ hostname: crawling017.archive.org
 ip: 207.241.227.234
 isPartOf: testcrawl-20050708 {{Dublin Core}}
 description: testcrawl with WARC output {{Dublin Core}}}
-operator: IA\_Admin {XXX why the \_?} {{1.0 standard says should be contact info, name or name and email}}
+operator: IA\_Admin {why the \_?} {{1.0 standard says should be contact info, name or name and email}}
 http-header-user-agent:
  Mozilla/5.0 (compatible; heritrix/1.4.0 +http://crawler.archive.org) {{redundant with info in request record}}
 format: WARC file version 1.0 {{Dublin Core}}
@@ -104,7 +97,7 @@ class CCWARCWriter:
         if self.writer is not None:
             self.f.close()
 
-    def create_default_info(self, version, ip, description=None, creator=None, operator=None):
+    def create_default_info(self, version, warcheader_version, ip, description=None, creator=None, operator=None):
         '''
         creator:  # person, organization, service
         operator:  # person, if creator is an organization
@@ -112,7 +105,7 @@ class CCWARCWriter:
         '''
         info = OrderedDict()
 
-        info['software'] = 'cocrawler/' + version
+        info['software'] = 'cocrawler/' + version + ' cocrawler_warcheader_version/' + warcheader_version
         info['hostname'] = self.hostname
         info['ip'] = ip
         if description:
@@ -148,7 +141,7 @@ class CCWARCWriter:
 
     def maybe_close(self):
         '''
-        TODO: always close/reopen if subprefix is not None; minimizes open filehandles
+        TODO: always close/reopen if subprefix is not None; to minimize open filehandles?
         '''
         fsize = os.fstat(self.f.fileno()).st_size
         if fsize > self.max_size:
@@ -186,18 +179,41 @@ class CCWARCWriter:
         LOGGER.debug('wrote warc dns response record%s for host %s', p(self.prefix), host)
         stats.stats_sum('warc dns'+p(self.prefix), 1)
 
-    def write_request_response_pair(self, url, req_headers, resp_headers, is_truncated, payload, digest=None):
+    def _fake_resp_headers(self, resp_headers, body_len, decompressed=False):
+        prefix = b'X-Crawler-'
+        ret = []
+        for h, v in resp_headers:
+            hl = h.lower()
+            if hl == b'content-length':
+                if not(v.isdigit() and int(v) == body_len):
+                    ret.append((prefix+h, v))
+                    ret.append((b'Content-Length', str(body_len)))
+            elif hl == b'content-encoding':
+                if decompressed:
+                    ret.append((prefix+h, v))
+                else:
+                    ret.append((h, v))
+            elif hl == b'transfer-encoding':
+                if v.lower() == b'chunked':
+                    # aiohttp always undoes chunking
+                    ret.append((prefix+h, v))
+                else:
+                    ret.append((h, v))
+            else:
+                ret.append((h, v))
+        return ret
+
+    def write_request_response_pair(self, url, req_headers, resp_headers, is_truncated, payload, digest=None, decompressed=False):
         if self.writer is None:
             self.open()
 
-        # XXX WARC-Identified-Payload-Type set from Apache Tika? (done by Common Crawl) (how expensive?)
-
-        req_http_headers = StatusAndHeaders('GET / HTTP/1.1', headers_to_str_headers(req_headers))
+        req_http_headers = StatusAndHeaders('GET / HTTP/1.1', req_headers)
 
         request = self.writer.create_warc_record('http://example.com/', 'request',
                                                  http_headers=req_http_headers)
 
-        resp_http_headers = StatusAndHeaders('200 OK', headers_to_str_headers(resp_headers), protocol='HTTP/1.1')
+        fake_resp_headers = self._fake_resp_headers(resp_headers, len(payload), decompressed=decompressed)
+        resp_http_headers = StatusAndHeaders('200 OK', fake_resp_headers, protocol='HTTP/1.1')
 
         warc_headers_dict = {}
         if digest is not None:
@@ -221,28 +237,6 @@ class CCWARCWriter:
         stats.stats_sum('warc r/r'+p(self.prefix), 1)
 
 
-def headers_to_str_headers(headers):
-    '''
-    Converts dict or tuple-based headers of bytes or str to
-    tuple-based headers of str, which is the python norm (pep 3333)
-    '''
-    ret = []
-
-    if isinstance(headers, collections_abc.Mapping):
-        h = headers.items()
-    else:
-        h = headers
-
-    for tup in h:
-        k, v = tup
-        if isinstance(k, six.binary_type):
-            k = k.decode('iso-8859-1')
-        if isinstance(v, six.binary_type):
-            v = v.decode('iso-8859-1')
-        ret.append((k, v))
-    return ret
-
-
 def p(prefix):
     if prefix:
         return ' (prefix '+prefix+')'
@@ -250,7 +244,7 @@ def p(prefix):
         return ''
 
 
-def setup(version, local_addr):
+def setup(version, warcheader_version, local_addr):
     warcall = config.read('WARC', 'WARCAll')
     if warcall is not None and warcall:
         max_size = config.read('WARC', 'WARCMaxSize')
@@ -260,7 +254,7 @@ def setup(version, local_addr):
         creator = config.read('WARC', 'WARCCreator')
         operator = config.read('WARC', 'WARCOperator')
         warcwriter = CCWARCWriter(prefix, max_size, subprefix=subprefix)  # XXX get_serial lacks a default
-        warcwriter.create_default_info(version, local_addr,
+        warcwriter.create_default_info(version, warcheader_version, local_addr,
                                        description=description, creator=creator, operator=operator)
     else:
         warcwriter = None
