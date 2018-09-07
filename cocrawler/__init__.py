@@ -518,10 +518,9 @@ class Crawler:
             await self.make_callback(ridealong,f)
 
 
+        LOGGER.debug('--> Size: [work queue]={0}, [ridealong]={1}, [deffered]={2}'.format(self.scheduler.qsize(),                                                                                      self.scheduler.ridealong_size(),                                                                                         self.deffered_queue.qsize()
+                                                                                         ))
 
-        LOGGER.debug('size of work queue now stands at %r urls', self.scheduler.qsize())
-        LOGGER.debug('size of ridealong now stands at %r urls', self.scheduler.ridealong_size())
-        LOGGER.debug('--> size of deffered queue now stands at %r urls', self.deffered_queue.qsize())
 
         stats.stats_set('queue size', self.scheduler.qsize())
         stats.stats_max('max queue size', self.scheduler.qsize())
