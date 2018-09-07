@@ -382,6 +382,7 @@ class Crawler:
                 ridealong.get('retries_left', 0) - 1, surt, ridealong['task'].req.url.hostname
             ))
             #seeds.fail(ridealong, self)
+            self.scheduler.del_ridealong(surt)
             return 'no_retries_left'
         # XXX jsonlog this soft fail
         ridealong['retries_left'] = retries_left
@@ -429,7 +430,7 @@ class Crawler:
                     fr_dummy.response = None # required here
                     fr_dummy.last_exception = 'dns_no_entry'
                     await self.make_callback(ridealong,fr_dummy)
-                    self.scheduler.del_ridealong(surt)
+
                     return ridealong['task']
                 else:
                     # job requeued
@@ -477,7 +478,7 @@ class Crawler:
             if res == 'no_retries_left':
                 # all retries attempts exausted, pass an error to handler
                 await self.make_callback(ridealong,f)
-                self.scheduler.del_ridealong(surt)
+
 
                 return ridealong['task']
             else:

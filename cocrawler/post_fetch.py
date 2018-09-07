@@ -193,7 +193,8 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
     resp_headers = f.response.headers
     content_type, content_encoding, charset = content.parse_headers(resp_headers, json_log)
 
-    html_types = set(('text/html', '', 'application/xhtml+xml'))
+
+    html_types = set(('text/html', '', 'application/xhtml+xml','application/json'))
 
     if content_type in html_types:
         if content_encoding != 'identity':
@@ -209,7 +210,6 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
             body, charset_used = content.my_decode(body_bytes, charset, detect)
 
         charset_log(json_log, charset, detect, charset_used)
-
 
 
         return body, charset_used
