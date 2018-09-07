@@ -25,13 +25,13 @@ class Validator():
 
             if self.istype(validator):
                 if not isinstance(value,validator):
-                    raise ValidatorError('--> value [{0}] is not an instance of [{1}]'.format(value,self.val))
+                    raise ValidatorError(' value "{0}" is not an instance of [{1}]'.format(value,self.val))
 
             elif isfunction(validator):
                 try:
                     validator(value)
                 except Exception as ex:
-                    raise ValidatorError('--> validator function returned error for value:{0} : {1}'.format(value,ex))
+                    raise ValidatorError(' validator function returned error for value:{0} : {1}'.format(value,ex))
             else:
                 pass
 
@@ -66,8 +66,7 @@ class Req():
 
     def __init__(self, url, post=None, cookies=None, multipart_post=False, headers=None):
 
-        self.source_url = url
-        self.url = URL(self.source_url)
+        self.url = URL(url)
 
         self.post = post
         self.cookies = cookies
@@ -98,4 +97,20 @@ class Req():
 
 
 
+    @classmethod
+    def options(cls):
+        # all allowed option to pass to session
+        datas = [key for key,val in cls.__dict__.items() if isinstance(val,SessionData)]
+        return datas
 
+    def __setattr__(self, key, value):
+        if key not in self.__class__.options():
+            raise KeyError('--> "{0}" option is not allowed'.format(key))
+
+
+        try:
+            # re-catch validation error to get the Key that caused the error
+            super().__setattr__(key,value)
+
+        except ValidatorError as ex:
+            raise ValidatorError('--> Validation error for [ {0} ] : {1}'.format(key,ex))
