@@ -45,3 +45,18 @@ class Task():
                 raise ValueError('--> Trying to get cookie but cookiejar is dummy, enable --reuse_session for cruzer!')
 
             return dict([(cok._key,cok._value) for cok in session.cookie_jar])
+
+
+
+    def clone_task(self):
+        '''
+        return same object but with cleared data
+        :return:
+        '''
+        self.last_url = None
+        self.doc = Document(url=self.req.url.url)
+        self.session_id=None
+        self.flow[:] = []
+        self.cruzer=None
+
+        return self

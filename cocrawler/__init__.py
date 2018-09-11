@@ -315,7 +315,7 @@ class Crawler:
         '''
         # end allow/deny plugin
 
-        LOGGER.debug('actually adding url %s, surt %s, for task domain: %s', url.url, url.surt, ridealong['task'].req.url.hostname)
+        LOGGER.debug('actually adding url %s, surt %s, for task domain: %s', url.url, url.surt, url.hostname)
         stats.stats_sum('added urls', 1)
 
         ridealong['priority'] = priority
@@ -592,6 +592,12 @@ class Crawler:
 
             else:
                 for task in iterator:
+
+                    if isinstance(task,StopIteration):
+                        # in proxy mode if no task left StopIteration class is returned
+                        LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
+                        break
+
                     ride_along = self.generate_ridealong(task,parent_task=parent_task)
                     LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
                     self.add_deffered_task(0,ride_along)

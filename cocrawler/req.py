@@ -64,8 +64,9 @@ class Req():
     multipart_post = SessionData(validator=bool)
     headers = SessionData(validator=dict)
 
-    def __init__(self, url, post=None, cookies=None, multipart_post=False, headers=None):
+    def __init__(self, url, source_url = None, post=None, cookies=None, multipart_post=False, headers=None):
 
+        self.source_url = source_url # used with proxy
         self.url = URL(url)
 
         self.post = post
@@ -104,7 +105,7 @@ class Req():
         return datas
 
     def __setattr__(self, key, value):
-        if key not in self.__class__.options():
+        if key != 'source_url' and key not in self.__class__.options():
             raise KeyError('--> "{0}" option is not allowed'.format(key))
 
 
@@ -114,3 +115,7 @@ class Req():
 
         except ValidatorError as ex:
             raise ValidatorError('--> Validation error for [ {0} ] : {1}'.format(key,ex))
+
+
+    def __str__(self):
+        return 'Req object for url: {0}'.format(self.url.url)

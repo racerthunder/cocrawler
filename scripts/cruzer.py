@@ -4,12 +4,16 @@
 Cruzer crawler
 '''
 import pathlib
-
+from functools import wraps
+import logging
+from tqdm import tqdm
 
 import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
-from tqdm import tqdm
+from cocrawler.urls import URL
+from cocrawler.proxy import proxy_checker
+
 
 from _BIN.proxy import Proxy
 
@@ -17,17 +21,16 @@ path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'top-1k.txt'
 
 TOTAL = sum([1 for x in path.open()])
 
-PROXY = Proxy()
+
+LOGGER = logging.getLogger(__name__)
+
+proxy = Proxy()
+PROXY_TOKEN = 'data2'
+
+
+
 
 def dispatcher():
-
-    # ls = ['http://facebook.com','http://fbcdn.net']
-    # counter.init(len(ls))
-    # for url in ls:
-    #     yield url
-    #
-    # return
-
 
     urls = [line.strip() for line in path.open()]
 
@@ -39,11 +42,6 @@ def dispatcher():
 
 class Cruzer(cocrawler.Crawler):
 
-    def update_req(self,req):
-        init_url = req.url.url
-        new = PROXY.get_next_proxy_cycle(init_url)
-        req.set_url(new)
-        print('update_req: {0}'.format(req.url.url))
 
     def task_generator(self):
         counter = 0
@@ -54,8 +52,8 @@ class Cruzer(cocrawler.Crawler):
 
             counter +=1
             url = 'https://httpbin.org/post'
-            #new = PROXY.get_next_proxy_cycle(url)
-            req = Req(url)
+            proxy_url = proxy.get_next_proxy_cycle(url)
+            req = Req(proxy_url,source_url=url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
@@ -68,6 +66,7 @@ class Cruzer(cocrawler.Crawler):
             if counter > 0:
                 break
 
+    @proxy_checker(proxy,PROXY_TOKEN)
     def task_download(self,task):
 
         if task.doc.status  == 200:
@@ -87,6 +86,8 @@ class Cruzer(cocrawler.Crawler):
             pass
 
 
+
+
 def misc():
     p = Proxy()
     print(p.get_next_proxy_cycle('http://tut.by'))
@@ -96,6 +97,7 @@ if __name__ == '__main__':
     command line args example: --config Fetcher.Nameservers:8.8.8.8 --loglevel INFO --reuse_session
     '''
     Cruzer.run()
+
     #misc()
 
 
