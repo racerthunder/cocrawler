@@ -3,13 +3,21 @@ from types import MethodType
 from collections import namedtuple
 import traceback
 import inspect
+from _BIN.proxy import Proxy
 
 def get_new_task():
     return namedtuple('task','name counter')
 
-def proxy_checker(proxy_obj,prox):
-    def proxy_wrapper(method):
-        print(proxy_obj,prox)
+class ProxyToken():
+    def __init__(self,token):
+        self.token = token
+
+proxy = Proxy()
+PROXY_TOKEN = ProxyToken('data2')
+
+def proxy_checker(proxy,proxy_token):
+    def proxy_inner(method):
+
         @wraps(method)
         def _impl(self,task):
             if task.counter == 0:
@@ -21,6 +29,7 @@ def proxy_checker(proxy_obj,prox):
                 yield StopIteration()
 
             else:
+
                 print('--> proxy is alive task: {0}'.format(task.name))
 
                 result = method(self, task)
@@ -41,7 +50,8 @@ def proxy_checker(proxy_obj,prox):
 
         return _impl
 
-    return proxy_wrapper
+    return proxy_inner
+
 
 class Crawler():
 
@@ -55,7 +65,7 @@ class Crawler():
         funct = getattr(self,'task_download')
         _t = get_new_task()
         _t.name = 'crawler_task'
-        _t.counter = 1 # 0 = make wrapper think this is the bad proxy
+        _t.counter = 0 # 0 = make wrapper think this is the bad proxy
 
 
         try:
@@ -76,35 +86,28 @@ class CruzerProxy(Crawler):
 
 
     def __init__(self):
-        print(self.task_download)
-        self.task_download = MethodType(proxy_wrapper(self.task_download),self)
-        print(self.task_download)
         super().__init__()
+        proxys = [val for name,val in globals().items() if isinstance(val,Proxy)]
+        if not len(proxys):
+            raise ValueError('--> Proxy not defined!')
+        proxy = proxys[0]
 
-        # tasks = [name for name in dir(self) if name.startswith('task_')]
-        #
-        # objs = []
-        #
-        # for task in tasks:
-        #
-        #     print('--> before: ',getattr(self,task))
-        #
-        # for task in tasks:
-        #     objs.append(getattr(self,task))
-        #
-        # bound_meth = MethodType(proxy_wrapper(objs[0]),self)
-        #
-        # setattr(self,'task_download', bound_meth)
-        #
-        # for task in tasks:
-        #     print('--> after: ',getattr(self,task))
+        proxy_tokens = [val for name,val in globals().items() if isinstance(val,Proxy)]
+        if not len(proxy_tokens):
+            raise ValueError('--> Proxy token not defined!')
+        proxy_token = proxy_tokens[0]
+
+        func_ls = [(name,val) for name,val in CruzerProxy.__subclasses__()[0].__dict__.items() if name.startswith('task_')]
+
+        for name,class_func in func_ls:
+            setattr(self,name,MethodType(proxy_checker(proxy,proxy_token)(class_func),self))
 
 
 
 
-class Cruzer(Crawler):
+class Cruzer(CruzerProxy):
 
-    @proxy_checker('obbbjss','aaaaa')
+    #@proxy_checker
     def task_download(self,task):
 
         print('--> running download for task: {0}'.format(task.name))

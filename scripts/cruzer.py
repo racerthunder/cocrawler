@@ -4,7 +4,6 @@
 Cruzer crawler
 '''
 import pathlib
-from functools import wraps
 import logging
 from tqdm import tqdm
 
@@ -12,7 +11,7 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.urls import URL
-from cocrawler.proxy import proxy_checker
+from cocrawler.proxy import CruzerProxy,ProxyToken
 
 
 from _BIN.proxy import Proxy
@@ -23,10 +22,6 @@ TOTAL = sum([1 for x in path.open()])
 
 
 LOGGER = logging.getLogger(__name__)
-
-proxy = Proxy()
-PROXY_TOKEN = 'data2'
-
 
 
 
@@ -40,8 +35,12 @@ def dispatcher():
 
         #break
 
-class Cruzer(cocrawler.Crawler):
+        
+#class Cruzer(CruzerProxy):
+    # proxy = Proxy()
+    # PROXY_TOKEN = ProxyToken('data222')
 
+class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
         counter = 0
@@ -52,8 +51,8 @@ class Cruzer(cocrawler.Crawler):
 
             counter +=1
             url = 'https://httpbin.org/post'
-            proxy_url = proxy.get_next_proxy_cycle(url)
-            req = Req(proxy_url,source_url=url)
+            #proxy_url = self.proxy.get_next_proxy_cycle(url)
+            req = Req(url,source_url=url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
@@ -66,7 +65,6 @@ class Cruzer(cocrawler.Crawler):
             if counter > 0:
                 break
 
-    @proxy_checker(proxy,PROXY_TOKEN)
     def task_download(self,task):
 
         if task.doc.status  == 200:
