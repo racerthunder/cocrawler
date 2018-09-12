@@ -5,6 +5,21 @@ import traceback
 import inspect
 from _BIN.proxy import Proxy
 
+
+def task_generator_wrapper(method):
+
+    #@wraps(method)
+    def inner(self):
+        print('--- innerrr',inner)
+        _task = get_new_task()
+        _task.name = 'wrapper'
+        yield _task
+
+        yield StopIteration()
+
+
+    return inner
+
 def get_new_task():
     return namedtuple('task','name counter')
 
@@ -100,7 +115,7 @@ class CruzerProxy(Crawler):
         func_ls = [(name,val) for name,val in CruzerProxy.__subclasses__()[0].__dict__.items() if name.startswith('task_')]
 
         for name,class_func in func_ls:
-            setattr(self,name,MethodType(proxy_checker(proxy,proxy_token)(class_func),self))
+            setattr(self, name, MethodType(proxy_checker(proxy,proxy_token)(class_func),self))
 
 
 

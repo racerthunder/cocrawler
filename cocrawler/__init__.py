@@ -89,7 +89,7 @@ class CallbackHandler():
         return self.worker().__await__()
 
     async def worker(self):
-        self.partial()
+        self.partial() # actual work is done here
         return await asyncio.sleep(0.1)
 
 class Crawler:

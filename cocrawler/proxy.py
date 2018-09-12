@@ -61,7 +61,6 @@ def proxy_checker(proxy,proxy_token,logger=None):
     return proxy_inner
 
 
-
 class CruzerProxy(Crawler):
     '''
     parse task_* method from class and reattach it to cruzer instance alrady decorated by proxy_wrapper
@@ -69,20 +68,25 @@ class CruzerProxy(Crawler):
 
     def __init__(self):
         super().__init__()
-        cruzer_vars = CruzerProxy.__subclasses__()[0].__dict__.items()
+        cruzer_vars = CruzerProxy.__subclasses__()[0].__dict__
 
-        proxys = [val for name,val in cruzer_vars if isinstance(val,Proxy)]
+        # --------> get proxy <--------#
+        proxys = [val for name,val in cruzer_vars.items() if isinstance(val,Proxy)]
         if not len(proxys):
             raise ValueError('--> Proxy not defined! Add Proxy instance as class attribute')
         proxy = proxys[0]
 
-        proxy_tokens = [val for name,val in cruzer_vars if isinstance(val,ProxyToken)]
+        # ------> get proxy token <------ #
+        proxy_tokens = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyToken)]
         if not len(proxy_tokens):
             raise ValueError('--> Proxy token not defined! Add ProxyToken instance as class attribute')
         proxy_token = proxy_tokens[0].token
 
-        func_ls = [(name,val) for name,val in cruzer_vars if name.startswith('task_')]
-
+        # ------> decorate task_* <------#
+        func_ls = [(name,val) for name,val in cruzer_vars.items() if name.startswith('task_')]
+        if not len(func_ls):
+            raise ValueError('--> Cruzer class mush have at least one "task_*" ')
         for name,class_func in func_ls:
-            setattr(self,name,MethodType(proxy_checker(proxy,proxy_token)(class_func),self))
+            setattr(self, name, MethodType(proxy_checker(proxy,proxy_token)(class_func), self))
+
 

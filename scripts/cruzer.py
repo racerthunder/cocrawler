@@ -35,12 +35,12 @@ def dispatcher():
 
         #break
 
-        
-#class Cruzer(CruzerProxy):
-    # proxy = Proxy()
-    # PROXY_TOKEN = ProxyToken('data222')
 
-class Cruzer(cocrawler.Crawler):
+class Cruzer(CruzerProxy):
+    proxy = Proxy()
+    PROXY_TOKEN = ProxyToken('data2')
+
+#class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
         counter = 0
@@ -51,8 +51,8 @@ class Cruzer(cocrawler.Crawler):
 
             counter +=1
             url = 'https://httpbin.org/post'
-            #proxy_url = self.proxy.get_next_proxy_cycle(url)
-            req = Req(url,source_url=url)
+            proxy_url = self.proxy.get_next_proxy_cycle(url)
+            req = Req(proxy_url,source_url=url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
