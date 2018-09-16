@@ -32,6 +32,7 @@ import aiohttp.resolver
 import aiohttp.connector
 import psutil
 import objgraph
+from concurrent.futures import ThreadPoolExecutor
 
 from . import scheduler
 from . import stats
@@ -89,11 +90,12 @@ class CallbackHandler():
         return self.worker().__await__()
 
     async def worker(self):
-        self.partial() # actual work is done here
+        await self.partial()
         return await asyncio.sleep(0.1)
 
 class Crawler:
     def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
+        self.executor = ThreadPoolExecutor(5)
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = reuse_session
@@ -174,7 +176,7 @@ class Crawler:
 
             self.pool.global_session=_session
 
-        self.datalayer = datalayer.Datalayer()
+        self.datalayer = datalayer.Datalayer(self)
         self.robots = robots.Robots(self.robotname, 'dummy_session', self.datalayer)
         self.scheduler = scheduler.Scheduler(self.max_workers,self.robots)
 
@@ -419,6 +421,8 @@ class Crawler:
 
         host_geoip = {}
 
+        entry = None
+
         if not mock_url:
             entry = await dns.prefetch(url, self.resolver)
             if not entry:
@@ -459,7 +463,7 @@ class Crawler:
 
 
         f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
-                                    headers=req_headers, proxy=proxy, mock_url=mock_url)
+                                    headers=req_headers, proxy=proxy, mock_url=mock_url,dns_entry=entry)
 
 
 
@@ -537,15 +541,11 @@ class Crawler:
         return ridealong['task']
 
     async def make_callback(self,ridealong,f):
-        partial = functools.partial(self.load_task_function, ridealong, f)
+        #partial = functools.partial(self.load_task_function, ridealong, f)
         with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
             try:
 
-
-
-                handler = CallbackHandler(partial)
-                await handler
-                #self.loop.run_in_executor(None,partial)
+                await self.load_task_function(ridealong, f)
 
             except ValueError as e:  # if it pukes, ..
                 stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
@@ -562,7 +562,7 @@ class Crawler:
 
         return task
 
-    def load_task_function(self,ridealong,fr):
+    async def load_task_function(self,ridealong,fr):
             parent_task = self.fill_task(ridealong['task'],fr)
 
             task_name = 'task_{0}'.format(parent_task.name)
@@ -571,36 +571,30 @@ class Crawler:
             if task_func is None:
                 raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
 
+            if asyncio.iscoroutinefunction(task_func):
+                # no new task will be yielded, run function and return
+                f = asyncio.ensure_future(task_func(parent_task),loop=self.loop)
+                # result is not needed here, just wait for completion
+                await f
 
-            # yeild from function
-            task_generator = task_func(parent_task)
-
-
-            if self.reuse_session:
-                self.pool.add_finished_task(parent_task.session_id,parent_task.name)
-
-            try:
-                # Attempt to see if you have an iterable object.
-                # In the case of a generator or iterator iter simply
-                # returns the value it was passed.
-                iterator = iter(task_generator)
-            except TypeError:
-                LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
-
-            except Exception as ex:
-                traceback.print_exc()
-
-            else:
-                for task in iterator:
-
+            elif inspect.isasyncgenfunction(task_func):
+                # we have a generator, load all tasks to the queue
+                async for task in task_func(parent_task):
                     if isinstance(task,StopIteration):
-                        # in proxy mode if no task left StopIteration class is returned
+                    # in proxy mode if no task left StopIteration class is returned
                         LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
                         break
 
                     ride_along = self.generate_ridealong(task,parent_task=parent_task)
                     LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
                     self.add_deffered_task(0,ride_along)
+
+
+            else:
+                raise ValueError('--> {0} is not a coroutine if asyncgenerator, instead = {1}'.format(task_name,type(task_func)))
+            if self.reuse_session:
+                self.pool.add_finished_task(parent_task.session_id,parent_task.name)
+
 
 
     async def work(self):
@@ -833,7 +827,7 @@ class Crawler:
                 self.deffered_queue.task_done() # this wont be reached if the queue is empty
             except asyncio.queues.QueueEmpty:
                 LOGGER.debug('--> deffered queue is empty')
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
 
             except concurrent.futures._base.CancelledError:  # seen with ^C
                 pass
@@ -920,7 +914,8 @@ class Crawler:
                 # this is a little racy with how awaiting work is set and the queue is read
                 # while we're in this join we aren't looking for STOPCRAWLER etc
 
-                await self.pool.close_or_wait()
+                if self.reuse_session:
+                    await self.pool.close_or_wait()
 
                 if not self.deffered_queue.empty():
                     # there is no point calling join on this queue since it's marked as complete once items is taken

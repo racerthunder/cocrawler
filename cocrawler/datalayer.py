@@ -1,6 +1,8 @@
 import pickle
 import logging
 import cachetools.ttl
+import peewee_async
+from copy import deepcopy
 
 import pympler.asizeof
 
@@ -12,7 +14,9 @@ __NAME__ = 'datalayer seen memory'
 
 
 class Datalayer:
-    def __init__(self):
+    def __init__(self,cocrawler):
+        self.cocrawler = cocrawler
+
         self.seen_set = set()
 
         robots_size = config.read('Robots', 'RobotsCacheSize')
@@ -20,6 +24,40 @@ class Datalayer:
         self.robots = cachetools.ttl.TTLCache(robots_size, robots_ttl)
 
         memory.register_debug(self.memory)
+
+        self._a_manager = None
+
+
+    def peewee_setter(self,value):
+
+        def get_async_params(database):
+            __params = deepcopy(database.__dict__.get('connect_params') or database.__dict__.get('connect_kwargs'))
+            if __params is None:
+                raise KeyError('--> db params cant be None ')
+
+            __params['db_name']=database.database
+
+            return __params
+
+        if self._a_manager is None:
+            async_connect_params = get_async_params(value)
+
+            a_database = peewee_async.MySQLDatabase(async_connect_params['db_name'], host=async_connect_params['host'], port=async_connect_params['port'], user=async_connect_params['user'], password=async_connect_params['password'])
+
+
+            a_manager = peewee_async.Manager(a_database, loop=self.cocrawler.loop)
+
+            a_manager.database.allow_sync = False
+
+            self._a_manager = a_manager
+
+
+    def peewee_getter(self):
+        if self._a_manager is None:
+            raise ValueError('--> First assign peewee database via self.datalayer.peewee=DATABASE')
+        return self._a_manager
+
+    peewee = property(peewee_getter,peewee_setter)
 
     def add_seen(self, url):
         '''A "seen" url is one that we've done something with, such as having

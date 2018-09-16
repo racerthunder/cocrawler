@@ -2,7 +2,7 @@ import aiohttp
 
 
 from .document import Document
-
+import asyncio
 
 class Task():
     def __init__(self,name,req,**kwargs):
@@ -30,6 +30,11 @@ class Task():
         return s
 
 
+    def __await__(self):
+        return self.worker().__await__()
+
+    async def worker(self):
+        return await asyncio.sleep(0.1)
 
     def cookie_list(self):
         '''

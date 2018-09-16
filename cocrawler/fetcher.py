@@ -124,14 +124,13 @@ FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'req_
                                                  'last_exception'])
 
 
-async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
+async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,dns_entry=None,
                 allow_redirects=None, max_redirects=None,
                 stats_prefix='', max_page_size=-1):
 
     # fr = FetcherResponse('response', 'body_bytes', 'response.request_info.headers',
     #                      't_first_byte', 't_last_byte', 'is_truncated', None)
     #
-
     if proxy:  # pragma: no cover
         proxy = aiohttp.ProxyConnector(proxy=proxy)
         # XXX we need to preserve the existing connector config (see cocrawler.__init__ for conn_kwargs)
@@ -216,10 +215,15 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,
         # ClientConnectorCertificateError for an SSL cert that doesn't match hostname
         # ClientConnectorError(None, None) caused by robots redir to DNS fail
         # ServerDisconnectedError(None,) caused by servers that return 0 bytes for robots.txt fetches
-        # TooManyRedirects("0, message=''",) caused by too many robots.txt redirs 
+        # TooManyRedirects("0, message=''",) caused by too many robots.txt redirs
+        dns_log = 'no_dns'
+        if dns_entry:
+            addrs, expires, _, host_geoip = dns_entry
+            dns_log = str(addrs)
+
         stats.stats_sum('fetch ClientError', 1)
         detailed_name = str(type(e).__name__)
-        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e)
+        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + ': dns: ' + dns_log
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'disconnect'  # testme WARC

@@ -36,9 +36,9 @@ REST: {}
 
 Crawl:
   MaxDepth: 3
-  MaxTries: 4
-  PageTimeout: 3
-  RetryTimeout: 5
+  MaxTries: 2
+  PageTimeout: 10
+  RetryTimeout: 2
   MaxWorkers: 10
   MaxHostQPS: 10
   MaxPageSize: 1000000

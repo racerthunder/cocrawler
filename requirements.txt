@@ -26,6 +26,7 @@ geoip2==2.9.0
 six==1.11.0
 selection==0.0.13
 defusedxml==0.5.0
+peewee_async==0.5.12
 tqdm==4.23.4
 objgraph==3.4.0
 Pympler==0.6
