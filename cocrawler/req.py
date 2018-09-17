@@ -1,7 +1,8 @@
 from .urls import URL
+
 from weakref import WeakKeyDictionary
 from inspect import isfunction
-
+from furl import furl
 
 class ValidatorError(Exception):pass
 
@@ -52,6 +53,18 @@ class SessionData():
     def __get__(self, instance, owner):
         return self._data.get(instance)
 
+class SessionData_Get(SessionData):
+
+    def __set__(self, instance, value):
+
+        if value is not None:
+            self.validator.validate(value)
+
+        self._data[instance] = value
+
+        new_url = furl(instance.url.url)
+        new_url.args = value
+        instance.url = URL(new_url.url)
 
 
 class Req():
@@ -60,16 +73,19 @@ class Req():
     '''
     url = SessionData(validator=URL)
     post = SessionData(validator=dict)
+    get = SessionData_Get(validator=dict) # rewrite URL instance with new url once get.__set__ is triggered
     cookies = SessionData(validator=dict)
     multipart_post = SessionData(validator=bool)
     headers = SessionData(validator=dict)
 
-    def __init__(self, url, source_url = None, post=None, cookies=None, multipart_post=False, headers=None):
+    def __init__(self, url, source_url = None, post=None, get=None, cookies=None,
+                 multipart_post=False, headers=None):
 
         self.source_url = source_url # used with proxy
         self.url = URL(url)
 
         self.post = post
+        self.get = get
         self.cookies = cookies
         self.multipart_post = multipart_post
         self.headers = headers

@@ -49,13 +49,14 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            url = 'https://httpbin.org/post'
+            url = 'https://httpbin.org/get'
+            #url = 'https://google.com'
 
             req = Req(url)
             domain = req.url.hostname_without_www
 
-            cookie = {'data':domain,'data2':'val2'}
-            req.post = cookie
+            params = {'data':domain,'data2':'val2'}
+            req.get = params
 
 
             yield Task(name='download',req=req,counter=counter,domain=domain)
@@ -74,7 +75,7 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            #print(task.doc.html)
+            print(task.doc.html)
 
         else:
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))

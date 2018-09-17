@@ -1,18 +1,17 @@
 from cocrawler.req import Req
 from cocrawler.task import Task
 from cocrawler.urls import  URL
-
+from furl import furl
 
 def misc():
 
     req = Req('http://tut.by')
-    task1 = Task(name='task1',req=req)
+    params = {'param1':'val1','p':'val2'}
+    req.get = 'ddd'
+    print(req.url.url)
 
-    task2 = task1.clone_task()
-    task2.req.url = URL('http://google.com')
-
-    print(task2.req)
 
 if __name__ == '__main__':
     #main()
     misc()
+

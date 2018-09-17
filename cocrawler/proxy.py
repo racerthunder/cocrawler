@@ -75,7 +75,7 @@ def proxy_checker(proxy,proxy_token,logger=None):
                         yield StopIteration()
 
                     else:
-                        raise ValueError('--> {0} is not a coroutine if asyncgenerator, instead = {1} \n\n'.format(method,type(method)))
+                        raise ValueError('--> {0} is not a coroutine or asyncgenerator, instead = {1} \n\n'.format(method,type(method)))
                 except Exception as ex:
                     traceback.print_exc()
 

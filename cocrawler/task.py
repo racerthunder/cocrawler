@@ -30,12 +30,6 @@ class Task():
         return s
 
 
-    def __await__(self):
-        return self.worker().__await__()
-
-    async def worker(self):
-        return await asyncio.sleep(0.1)
-
     def cookie_list(self):
         '''
         simple view of cookie, just key and value pairs
