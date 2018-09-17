@@ -128,6 +128,16 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
                 allow_redirects=None, max_redirects=None,
                 stats_prefix='', max_page_size=-1):
 
+    dns_log = (0 , 'no_dns')
+    if dns_entry:
+        addrs, expires, _, host_geoip = dns_entry
+        if isinstance(addrs,list):
+            records_num = len(addrs)
+            if records_num>1:
+                dns_log = (records_num, str(addrs[0]))
+        else:
+            dns_log = (0,str(addrs))
+
     # fr = FetcherResponse('response', 'body_bytes', 'response.request_info.headers',
     #                      't_first_byte', 't_last_byte', 'is_truncated', None)
     #
@@ -216,14 +226,10 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         # ClientConnectorError(None, None) caused by robots redir to DNS fail
         # ServerDisconnectedError(None,) caused by servers that return 0 bytes for robots.txt fetches
         # TooManyRedirects("0, message=''",) caused by too many robots.txt redirs
-        dns_log = 'no_dns'
-        if dns_entry:
-            addrs, expires, _, host_geoip = dns_entry
-            dns_log = str(addrs)
 
         stats.stats_sum('fetch ClientError', 1)
         detailed_name = str(type(e).__name__)
-        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + ': dns: ' + dns_log
+        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + ': dns [0]: {1}'.format(dns_log[0],dns_log[1])
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'disconnect'  # testme WARC
@@ -282,7 +288,13 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
     # did we receive cookies? was the security bit set?
 
     log_headers = None #pformat(dict(response.raw_headers),indent=10)
-    LOGGER.debug('<{0} [{1}] {2}> \n {3}'.format(req.method,response.status,url.url,log_headers or ''))
+    LOGGER.debug('<{0} [{1}] {2}   dns [3]: {4}> \n {5}'.format(req.method,
+                                                            response.status,
+                                                            url.url,
+                                                            dns_log[0],
+                                                            dns_log[1],
+                                                            log_headers or ''
+                                                            ))
 
     return fr
 

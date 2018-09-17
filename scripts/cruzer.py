@@ -51,13 +51,13 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=TOTAL):
 
             counter +=1
-            url = 'https://httpbin.org/post'
+            url = 'https://httpbin.org/get'
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url,source_url=url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
-            req.post = cookie
+            req.get = cookie
 
 
             yield Task(name='download',req=req,counter=counter,domain=domain)

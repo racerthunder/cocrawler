@@ -571,27 +571,34 @@ class Crawler:
             if task_func is None:
                 raise ValueError('--> Cant find task in Cruzer: {0}'.format(task_name))
 
-            if asyncio.iscoroutinefunction(task_func):
-                # no new task will be yielded, run function and return
-                f = asyncio.ensure_future(task_func(parent_task),loop=self.loop)
-                # result is not needed here, just wait for completion
-                await f
 
-            elif inspect.isasyncgenfunction(task_func):
-                # we have a generator, load all tasks to the queue
-                async for task in task_func(parent_task):
-                    if isinstance(task,StopIteration):
-                    # in proxy mode if no task left StopIteration class is returned
-                        LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
-                        break
+            try:
+                if asyncio.iscoroutinefunction(task_func):
+                    # no new task will be yielded, run function and return
+                    f = asyncio.ensure_future(task_func(parent_task),loop=self.loop)
+                    # result is not needed here, just wait for completion
+                    await f
 
-                    ride_along = self.generate_ridealong(task,parent_task=parent_task)
-                    LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
-                    self.add_deffered_task(0,ride_along)
+                elif inspect.isasyncgenfunction(task_func):
+                    # we have a generator, load all tasks to the queue
+                    async for task in task_func(parent_task):
+                        if isinstance(task,StopIteration):
+                        # in proxy mode if no task left StopIteration class is returned
+                            LOGGER.debug('--> No task left in: {0}, for: {1}'.format(task_name,parent_task.req.url.hostname_without_www))
+                            break
+
+                        ride_along = self.generate_ridealong(task,parent_task=parent_task)
+                        LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
+                        self.add_deffered_task(0,ride_along)
 
 
-            else:
-                raise ValueError('--> {0} is not a coroutine if asyncgenerator, instead = {1}'.format(task_name,type(task_func)))
+                else:
+                    raise ValueError('--> {0} is not a Coroutine or Asyncgenerator, instead = {1}'.format(task_name,type(task_func)))
+
+            except Exception as ex:
+                traceback.print_exc()
+
+
             if self.reuse_session:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)
 
