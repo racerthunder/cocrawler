@@ -35,16 +35,17 @@ REST: {}
 #  ServerPort: 8080  # add a + to search for a port
 
 Crawl:
+  DnsTimeout: 5
   MaxDepth: 3
-  MaxTries: 2
-  PageTimeout: 10
+  MaxTries: 0
+  PageTimeout: 5
   RetryTimeout: 2
   MaxWorkers: 10
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
   UpgradeInsecureRequests: 1  # send this http header
-  ConnectTimeout: 0.  # seconds, 0.=none
+  ConnectTimeout: 2  # seconds, 0.=none
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None

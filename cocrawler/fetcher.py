@@ -26,6 +26,7 @@ import asyncio
 import logging
 import aiohttp
 
+
 from . import stats
 from . import config
 from . import content
@@ -135,6 +136,8 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
             records_num = len(addrs)
             if records_num>1:
                 dns_log = (records_num, str(addrs[0]))
+            else:
+                dns_log = (0,str(addrs))
         else:
             dns_log = (0,str(addrs))
 
@@ -181,6 +184,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
                         post_data = req.post
                 else:
                     post_data = None
+
 
                 response = await session.request(req.method,mock_url or url.url,
                                          allow_redirects=allow_redirects,

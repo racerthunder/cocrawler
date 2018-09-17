@@ -33,6 +33,7 @@ import aiohttp.connector
 import psutil
 import objgraph
 from concurrent.futures import ThreadPoolExecutor
+import async_timeout
 
 from . import scheduler
 from . import stats
@@ -50,6 +51,7 @@ from . import warc
 from . import dns
 from . import geoip
 from . import memory
+from . import log_master
 
 from . import stats
 from . import timer
@@ -99,6 +101,7 @@ class Crawler:
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = reuse_session
+
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -118,6 +121,7 @@ class Crawler:
         self.init_urls_loaded = False # set to True once all urls from init list are consumed
         self.deffered_queue = asyncio.Queue()
         self.pool = SessionPool() # keep all runnning sessions if reuse_session==True
+        self.log_master = log_master.LogMaster()
 
         #
         # try:
@@ -152,7 +156,6 @@ class Crawler:
 
         if self.reuse_session:
             self.conn_kwargs['force_close']=True
-            self.conn_kwargs['enable_cleanup_closed'] = True
 
 
         conn = aiohttp.connector.TCPConnector(**self.conn_kwargs)
@@ -165,16 +168,25 @@ class Crawler:
             timeout_kwargs['sock_connect'] = connect_timeout
         if page_timeout:
             timeout_kwargs['total'] = page_timeout
+
+        # timeout_kwargs['connect'] = page_timeout
+        # timeout_kwargs['sock_connect'] = page_timeout
+        # timeout_kwargs['sock_read'] = page_timeout
+
         self.timeout = aiohttp.ClientTimeout(**timeout_kwargs)
 
         if self.reuse_session is False:
 
             cookie_jar = aiohttp.DummyCookieJar()
 
-            _session = aiohttp.ClientSession(connector=self.connector, cookie_jar=cookie_jar,
-                                             auto_decompress=False,timeout=self.timeout)
+            _session = aiohttp.ClientSession(connector=self.connector,
+                                             cookie_jar=cookie_jar,
+                                             auto_decompress=False,
+                                             timeout=self.timeout
+                                             )
 
             self.pool.global_session=_session
+
 
         self.datalayer = datalayer.Datalayer(self)
         self.robots = robots.Robots(self.robotname, 'dummy_session', self.datalayer)
@@ -371,21 +383,25 @@ class Crawler:
         if self.reuse_session is False:
             await self.pool.global_session.close()
 
+        self.log_master.close_all()
+
     async def _retry_if_able(self, work, ridealong):
-        LOGGER.debug('--> retrying work: {0}'.format(work))
+
         priority, rand, surt = work
-        retries_left = ridealong.get('retries_left', 0) - 1
+        retries_left = int(ridealong.get('retries_left', 0)) - 1
         if retries_left <= 0:
             # XXX jsonlog hard fail
             # XXX remember that this host had a hard fail
             stats.stats_sum('retries completely exhausted', 1)
             self.scheduler.del_ridealong(surt)
             LOGGER.debug('--> retries completely exhausted = {0}, surt: {1}, domain: {2} '.format(
-                ridealong.get('retries_left', 0) - 1, surt, ridealong['task'].req.url.hostname
+                retries_left, surt, ridealong['task'].req.url.hostname
             ))
             #seeds.fail(ridealong, self)
             self.scheduler.del_ridealong(surt)
             return 'no_retries_left'
+
+        LOGGER.debug('--> retrying work: {0}'.format(work))
         # XXX jsonlog this soft fail
         ridealong['retries_left'] = retries_left
         self.scheduler.set_ridealong(surt, ridealong)
@@ -424,7 +440,13 @@ class Crawler:
         entry = None
 
         if not mock_url:
-            entry = await dns.prefetch(url, self.resolver)
+            try:
+                with async_timeout.timeout(int(config.read('Crawl', 'DnsTimeout'))):
+                    entry = await dns.prefetch(url, self.resolver)
+
+            except asyncio.TimeoutError:
+                entry = None
+
             if not entry:
                 # fail out, we don't want to do DNS in the robots or page fetch
                 res = await self._retry_if_able(work, ridealong)
@@ -460,6 +482,7 @@ class Crawler:
         # ---> end skip section <--
 
         _session = self.pool.get_session(ridealong['task'].session_id)
+
 
 
         f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
