@@ -169,10 +169,6 @@ class Crawler:
         if page_timeout:
             timeout_kwargs['total'] = page_timeout
 
-        # timeout_kwargs['connect'] = page_timeout
-        # timeout_kwargs['sock_connect'] = page_timeout
-        # timeout_kwargs['sock_read'] = page_timeout
-
         self.timeout = aiohttp.ClientTimeout(**timeout_kwargs)
 
         if self.reuse_session is False:
@@ -422,8 +418,9 @@ class Crawler:
         stats.stats_set('priority', priority+min(rand, 0.99))
 
         ridealong = self.scheduler.get_ridealong(surt)
-        # if 'url' not in ridealong:
-        #     raise ValueError('missing ridealong for surt '+surt)
+
+        if 'task' not in ridealong:
+            raise ValueError('missing ridealong for surt '+surt)
 
         url = ridealong['task'].req.url
 
@@ -445,6 +442,7 @@ class Crawler:
                     entry = await dns.prefetch(url, self.resolver)
 
             except asyncio.TimeoutError:
+                LOGGER.debug('--> DNS timeout for url: {0}'.format(url))
                 entry = None
 
             if not entry:

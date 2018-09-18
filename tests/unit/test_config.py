@@ -57,13 +57,16 @@ def main():
 
     config.config(args.configfile, args.config)
 
-    #print(config.print_final())
+    print(config.print_final())
 
     ns = config.read('Fetcher', 'DNSWarmupLog')
     d = config.read('Crawl', 'MaxDepth')
+    redir = config.read('Crawl', 'AllowExternalRedir')
 
-    print(ns)
-    print(d)
+    print(type(bool(redir)))
+    if not redir:
+        print('not allowed')
+
 if __name__ == '__main__':
     #  --config Fetcher.Nameservers:1.1.1.1 --config Crawl.MaxDepth:30 --loglevel INFO --reuse_session
     main()

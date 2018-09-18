@@ -61,7 +61,8 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            url = 'https://101516.mobi'
+            #url = 'http://httpbin.org/get'
+            url = 'http://viagraescomprar.com/redir.php'
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url,source_url=url)
             domain = req.url.hostname_without_www

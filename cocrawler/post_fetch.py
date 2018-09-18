@@ -142,10 +142,17 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
             stats.stats_sum(prefix+' same without set-cookie', 1)
         seeds.fail(ridealong, crawler)
         queue_next = False
+
     else:
         LOGGER.debug('special redirect of type %s for url %s', redir_kind, url.url)
         # XXX push this info onto a last-k for the host
         # to be used pre-fetch to mutate urls we think will redir
+
+    if config.read('Crawl', 'AllowExternalRedir') is False:
+        # do not allow redirect to external domains, consequently www. or https is left as valid
+        if url.registered_domain != next_url.registered_domain:
+            LOGGER.debug('--> No external redirects allowed: {0} to {1}'.format(url.url, next_url.url))
+            queue_next = False
 
     priority += 1
 

@@ -35,10 +35,11 @@ REST: {}
 #  ServerPort: 8080  # add a + to search for a port
 
 Crawl:
+  AllowExternalRedir: True  # should we follow redir to diff domain than the source
   DnsTimeout: 5
   MaxDepth: 3
   MaxTries: 0
-  PageTimeout: 5
+  PageTimeout: 10
   RetryTimeout: 2
   MaxWorkers: 10
   MaxHostQPS: 10
@@ -73,7 +74,7 @@ Fetcher:
   DNSTimeout: 2 # seconds, max time for check
   DNSWarmupDomain: mail.ru # domain to query ns agains
    
-  NameserverTries: 10
+  NameserverTries: 3
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
@@ -261,5 +262,21 @@ def set_config(c):
 
 def type_fixup(rhs):
     if rhs.startswith('[') and rhs.endswith(']'):
-        return rhs[1:len(rhs)-1].split(',')
+        rhs = rhs[1:len(rhs)-1].split(',')
+
+    if rhs == 'False':
+        return False
+    if rhs == 'True':
+        return True
+
+    try:
+        return int(rhs)
+    except:
+        pass
+
+    try:
+        return float(rhs)
+    except:
+        pass
+
     return rhs
