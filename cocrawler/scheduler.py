@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 class Scheduler:
     def __init__(self,max_workers, robots):
         self.max_workers=max_workers
-        self.q = asyncio.PriorityQueue(maxsize=self.max_workers*5)
+        self.q = asyncio.PriorityQueue(maxsize=self.max_workers)
         self.ridealong = {}
         self.awaiting_work = 0
         self.maxhostqps = None
@@ -194,7 +194,7 @@ class Scheduler:
         if ridealongid in self.ridealong:
             return self.ridealong[ridealongid]
         else:
-            LOGGER.warning('ridealong data for surt %s not found', ridealongid)
+            LOGGER.debug('ridealong data for surt %s not found', ridealongid)
             return {}
 
     def del_ridealong(self, ridealongid):

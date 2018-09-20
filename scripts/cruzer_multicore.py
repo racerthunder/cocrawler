@@ -61,7 +61,7 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            url = 'http://httpbin.org/get'
+            #url = 'http://httpbin.org/get'
 
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url,source_url=url)
@@ -86,21 +86,6 @@ class Cruzer(cocrawler.Crawler):
             #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
 
-
-    async def task_second(self,task):
-        print('---herere')
-        if task.doc.status  == 200:
-            print('good222: {0} , last_url: {1}'.format(task.req.url.hostname,task.last_url))
-        else:
-            print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
-            pass
-
-
-
-
-def misc():
-    p = Proxy()
-    print(p.get_next_proxy_cycle('http://tut.by'))
 
 if __name__ == '__main__':
     '''

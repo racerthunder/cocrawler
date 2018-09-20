@@ -97,10 +97,14 @@ class CallbackHandler():
 
 class Crawler:
     def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
-        self.executor = ThreadPoolExecutor(5)
+
+        self.cpu_control_worker = None
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = reuse_session
+
+        self.CONFIG_CPU_CHECK_INTERVAL = 0.3
+        self.CONFIG_TARGET_CPU_RANGE = list(range(40,80))
 
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
@@ -289,6 +293,7 @@ class Crawler:
 
         reason = None
 
+        '''
         allowed = url_allowed.url_allowed(url)
         if not allowed:
             reason = 'rejected by url_allowed'
@@ -298,7 +303,7 @@ class Crawler:
             url = allowed
             ridealong['task'].req.url = url
 
-        '''
+        
         if reason:
             pass
         elif priority > int(config.read('Crawl', 'MaxDepth')):
@@ -354,6 +359,16 @@ class Crawler:
         # if cw and not cw.done():
         #     cw.cancel()
 
+
+        if self.cpu_control_worker and not self.cpu_control_worker.done():
+            self.cpu_control_worker.cancel()
+
+        if self.producer and not self.producer.done():
+            self.producer.cancel()
+
+        if self.deffered_queue_checker and not self.deffered_queue_checker.done():
+            self.deffered_queue_checker.cancel()
+
     def on_finish(self):
         # this is the last method is called before exiting program
         # make external methods calls here, since crawler calls 'exit'
@@ -399,12 +414,15 @@ class Crawler:
 
         LOGGER.debug('--> retrying work: {0}'.format(work))
         # XXX jsonlog this soft fail
-        ridealong['retries_left'] = retries_left
-        self.scheduler.set_ridealong(surt, ridealong)
+
         # increment random so that we don't immediately retry
         extra = random.uniform(0, 0.2)
         priority, rand = self.scheduler.update_priority(priority, rand+extra)
+
         ridealong['priority'] = priority
+        ridealong['retries_left'] = retries_left
+        self.scheduler.set_ridealong(surt, ridealong)
+
         await self.scheduler.requeue_work((priority, rand, surt))
         return ridealong
 
@@ -420,7 +438,11 @@ class Crawler:
         ridealong = self.scheduler.get_ridealong(surt)
 
         if 'task' not in ridealong:
-            raise ValueError('missing ridealong for surt '+surt)
+            #TODO: it must be the thing when multiple workers get redirect to the same location,
+            # the first one deletes surt and the others cant find it
+            # TODO: move from surt as the main param to find taks (generate something more unique)
+            #raise ValueError('missing ridealong for surt '+surt)
+            return None
 
         url = ridealong['task'].req.url
 
@@ -442,10 +464,15 @@ class Crawler:
                     entry = await dns.prefetch(url, self.resolver)
 
             except asyncio.TimeoutError:
-                LOGGER.debug('--> DNS timeout for url: {0}'.format(url))
+                LOGGER.debug('--> DNS timeout for url: {0}'.format(url.url))
                 entry = None
 
+            else:
+                if not entry:
+                    LOGGER.debug('--> DNS prefectch is empty for url: {0}'.format(url.url))
+
             if not entry:
+
                 # fail out, we don't want to do DNS in the robots or page fetch
                 res = await self._retry_if_able(work, ridealong)
 
@@ -510,7 +537,7 @@ class Crawler:
                 # still has some retries left, res is an old ridealong that was requed
                 return res['task']
 
-        self.scheduler.del_ridealong(surt)
+
 
         # if f.response.status >= 400 and 'seed' in ridealong:
         #     seeds.fail(ridealong, self)
@@ -543,7 +570,11 @@ class Crawler:
             await self.make_callback(ridealong,f)
 
 
-        LOGGER.debug('--> Size: [work queue]={0}, [ridealong]={1}, [deffered]={2}'.format(self.scheduler.qsize(),                                                                                      self.scheduler.ridealong_size(),                                                                                         self.deffered_queue.qsize()
+
+        self.scheduler.del_ridealong(surt)
+
+        LOGGER.debug('--> Size: [work queue]={0}, [ridealong]={1}, [deffered]={2}'.format(
+                                                                    self.scheduler.qsize(),                                                                                      self.scheduler.ridealong_size(),                                                                                         self.deffered_queue.qsize()
                                                                                          ))
 
 
@@ -660,6 +691,53 @@ class Crawler:
 
         # except asyncio.CancelledError:
         #     pass
+
+    async def control_cpu_usage(self):
+        await asyncio.sleep(1.0)
+
+        current_process = psutil.Process(os.getpid())
+        cpu_history = [max(self.CONFIG_TARGET_CPU_RANGE)] * 5 # dummy fill
+
+        while True:
+            # at least 10 sec since it slow to pick up the pace
+            await asyncio.sleep(10)
+            cur_cpu = current_process.cpu_percent(interval=None)
+            # add cpu to recent history and calculate avgCpu (5 sec)
+            cpu_history.insert(0,cur_cpu)
+
+
+            # start adjusting
+            del cpu_history[5:]
+
+            avg_cpu = sum(cpu_history) / len(cpu_history)
+
+            limit = max((self.max_workers * 5) // 100, 1)
+
+            if avg_cpu not in self.CONFIG_TARGET_CPU_RANGE:
+
+                if avg_cpu > max(self.CONFIG_TARGET_CPU_RANGE):
+
+                    # decreaxe max queue size by  5%
+                    LOGGER.info('--> CPU DOWN, [workers before={0} after={1}] avg cpu={2}'.format(self.max_workers,
+                                                                                         self.max_workers-limit,
+                                                                                           avg_cpu))
+                    self.max_workers -= limit
+
+                elif avg_cpu < min(self.CONFIG_TARGET_CPU_RANGE) :
+                    # increase max queue size by 5%
+                    LOGGER.info('--> CPU UP, [workers before={0} after={1}] avg cpu={2}'.format(self.max_workers,
+                                                                                     self.max_workers+limit,
+                                                                                     avg_cpu))
+                    self.max_workers +=limit
+
+
+                self.scheduler.q._maxsize = self.max_workers
+
+            else:
+                # oK within the range
+                LOGGER.info('--> CPU RANGE')
+
+
 
     async def control_limit(self):
         '''
@@ -844,6 +922,7 @@ class Crawler:
 
         return _id
 
+
     async def deffered_queue_processor(self):
         while True:
             try:
@@ -861,7 +940,7 @@ class Crawler:
                 pass
             except Exception as ex:
                 traceback.print_exc()
-                break
+                #break
 
             if self.stopping:
 
@@ -882,9 +961,12 @@ class Crawler:
                 LOGGER.debug('--> cruzer iter is empty')
                 break
 
+            except concurrent.futures._base.CancelledError:  # seen with ^C
+                pass
+
             except Exception as ex:
                 traceback.print_exc()
-                break
+                #break
 
             ride_along = self.generate_ridealong(task)
 
@@ -894,6 +976,18 @@ class Crawler:
                 raise asyncio.CancelledError
 
 
+    def get_workers_state(self):
+
+        workers_alive_num = sum([1 for w in self.workers if not w.done()])
+        workers_dead_num = len(self.workers) - workers_alive_num
+        is_alive_deffered_queue_processor = self.deffered_queue_checker.done()
+        is_alive_queue_producer = self.producer.done()
+
+        return {'workers_alive':workers_alive_num,
+                'workers_dead':workers_dead_num,
+                'deffered_queue_processor':is_alive_deffered_queue_processor,
+                'main_queue_producer':is_alive_queue_producer
+                }
 
 
     async def crawl(self):
@@ -903,6 +997,10 @@ class Crawler:
         await self.minute()  # print pre-start stats
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
+
+        if config.read('Crawl', 'CPUControl'):
+            self.cpu_control_worker = asyncio.Task(self.control_cpu_usage())
+
         self.producer = asyncio.Task(self.queue_producer())
 
 
@@ -947,12 +1045,29 @@ class Crawler:
 
                 if not self.deffered_queue.empty():
                     # there is no point calling join on this queue since it's marked as complete once items is taken
-                    LOGGER.warning('--> queue is about to join, but we still have things in deffered queue, waiting')
+                    LOGGER.warning('--> queue is about to join, but we still have things in deffered queue,'
+                                   'size: {0}'.format(self.deffered_queue.qsize()))
+                    LOGGER.warning('--> Workers stats: {0}'.format(str(self.get_workers_state())))
+
                     await asyncio.sleep(1)
 
+                    if self.deffered_queue_checker.done():
+                        LOGGER.warning('--> Trying to restart deffered queue processor')
+                        self.deffered_queue_checker = asyncio.Task(self.deffered_queue_processor())
+
+                    else:
+                        LOGGER.warning('--> Something wrong, deffered queue is NOT empty and deffered'
+                                       'queue processor is running, but the loop seems to hang')
+
                 elif self.pool.busy == True:
-                    LOGGER.warning('--> queue is about to join, but there are tasks in submited list, [ main queue: {0}'
-                                   ' , deffered queue: {1} , ridealong size: {2} ]'.format(self.scheduler.qsize(),self.deffered_queue.qsize(),len(self.scheduler.ridealong)))
+
+                    LOGGER.warning('--> queue is about to join, but there are tasks in submited list, '
+                                   '[ main queue: {0} , deffered queue: {1} , ridealong size: {2} ]'
+                                   .format(self.scheduler.qsize(),
+                                           self.deffered_queue.qsize(),
+                                           len(self.scheduler.ridealong)
+
+                                           ))
                     await asyncio.sleep(1)
 
                 else:
@@ -970,8 +1085,7 @@ class Crawler:
 
 
         self.cancel_workers()
-        self.producer.cancel()
-        self.deffered_queue_checker.cancel()
+
 
 
 
@@ -1056,7 +1170,7 @@ class Crawler:
 
         cruzer = cls(**kwargs)
 
-        loop = asyncio.get_event_loop()
+        loop = cruzer.loop
 
         #loop.set_debug(True)
 
@@ -1072,7 +1186,6 @@ class Crawler:
             app = webserver.make_app()
         else:
             app = None
-
 
         try:
             loop.run_until_complete(cruzer.crawl())

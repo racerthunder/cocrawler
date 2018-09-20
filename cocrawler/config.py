@@ -35,6 +35,7 @@ REST: {}
 #  ServerPort: 8080  # add a + to search for a port
 
 Crawl:
+  CPUControl: False  # adjust max_workers based on cpu usage
   AllowExternalRedir: True  # should we follow redir to diff domain than the source
   DnsTimeout: 5
   MaxDepth: 3
@@ -78,7 +79,7 @@ Fetcher:
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
-  DNSCacheMaxSize: 1000000
+  DNSCacheMaxSize: 100000000
 
 GeoIP:
   DataDir: None
@@ -93,7 +94,7 @@ Plugins:
 Multiprocess:
   BurnerThreads: 2
   ParseInBurnerSize: 20000
-#  Affinity: yes
+  Affinity: False
 
 Save:
 #   Name:
