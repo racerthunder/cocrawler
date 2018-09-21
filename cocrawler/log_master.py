@@ -44,4 +44,7 @@ class LogMaster():
             for path,obj in cls._instances.items():
                 obj.close()
 
+            # remove all objects from cache
+            cls._instances = {}
+
 

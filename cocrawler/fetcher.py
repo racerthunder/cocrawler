@@ -135,7 +135,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         addrs, expires, _, host_geoip = dns_entry
         if isinstance(addrs,list):
             records_num = len(addrs)
-            if records_num>0:
+            if records_num > 0:
                 dns_log = (records_num, str(addrs[0]))
             else:
                 dns_log = (0,str(addrs))
