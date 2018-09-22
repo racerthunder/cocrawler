@@ -114,7 +114,7 @@ def setup(policy=None):
     else:
         SEEDS = None
 
-    memory.register_debug(mymemory)
+    #memory.register_debug(mymemory)
 
 
 def setup_seeds(seeds):

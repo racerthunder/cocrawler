@@ -118,7 +118,7 @@ async def carbon_push(server, port, tuples):
         await w.drain()
         w.close()
     except OSError as e:
-        LOGGER.warn('carbon stats push fail: %r', e)
+        LOGGER.warning('carbon stats push fail: %r', e)
         stats.stats_sum('carbon stats push fail', 1)
 
 
@@ -150,7 +150,7 @@ class CarbonTimer:
 
             if elapsed > self.dt*1.2:
                 # this indicates that there's too many workers and too much cpu burn going on
-                LOGGER.warn('tried to sleep for %f, but actually slept for %f', self.dt, elapsed)
+                LOGGER.warning('tried to sleep for %f, but actually slept for %f', self.dt, elapsed)
 
             new = {}
             for s in self.stats_list:

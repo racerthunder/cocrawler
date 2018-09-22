@@ -52,7 +52,7 @@ Crawl:
 #  DomainBudget: None
 #  HostBudget: None
   QueueEmbeds: False
-  DebugMemory: False
+  DebugMemory: False  # if true print memory usage to stdout
 
 UserAgent:
   Style: crawler
@@ -84,9 +84,10 @@ Fetcher:
 GeoIP:
   DataDir: None
 
-#CarbonStats:
-#  Server: localhost
-#  Port: 2004
+CarbonStats:
+ Enabled: False
+ Server: 51.158.78.206
+ Port: 2004
 
 Plugins:
   url_allowed: AllDomains

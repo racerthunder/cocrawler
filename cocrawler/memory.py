@@ -9,6 +9,7 @@ import gc
 import os
 import random
 import tempfile
+import sys
 
 import objgraph
 
@@ -82,10 +83,16 @@ def print_summary(f):
     for l in lines.read().splitlines():
         LOGGER.info('  %s', l)
 
+def print_summary_cruzer():
+    pass
 
 def limit_resources():
     _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     # XXX warn if too few compared to max_wokers?
+
+    if sys.platform=='darwin':
+        hard = 10240
+
     resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
 
     _, hard = resource.getrlimit(resource.RLIMIT_AS)

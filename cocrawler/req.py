@@ -1,8 +1,10 @@
-from .urls import URL
-
 from weakref import WeakKeyDictionary
 from inspect import isfunction
 from furl import furl
+
+
+from .urls import URL
+
 
 class ValidatorError(Exception):pass
 
@@ -52,6 +54,7 @@ class SessionData():
 
     def __get__(self, instance, owner):
         return self._data.get(instance)
+
 
 class SessionData_Get(SessionData):
 

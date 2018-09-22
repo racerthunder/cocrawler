@@ -5,6 +5,8 @@ import asyncio
 from statistics import mean
 import pympler
 
+from . import memory
+
 LOGGER = logging.getLogger(__name__)
 
 class SessionPool():
@@ -21,6 +23,8 @@ class SessionPool():
         self._work_times = [] # record time completion in seconds for each task
         self.max_work_time = max_work_time # in seconds (avg_work_time * max_work_time)
         self._last_avg_work_time = None
+
+        memory.register_debug(self.memory)
 
     def size(self):
         return len(self._pool)

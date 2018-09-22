@@ -231,13 +231,18 @@ class Crawler:
                 LOGGER.info('after adding seeds, work queue is %r urls', self.scheduler.qsize())
                 stats.stats_max('initial seeds', self.scheduler.qsize())
 
-        self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{}'.format(os.getpid()))
+        self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{0}'.format(os.getpid()))
         LOGGER.info('Touch %s to stop the crawler.', self.stop_crawler)
 
-        self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{}'.format(os.getpid()))
+        self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{0}'.format(os.getpid()))
         LOGGER.info('Touch %s to pause the crawler.', self.pause_crawler)
 
-        self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{}'.format(os.getpid()))
+        block = getattr(self,'block',None) # exists in multicore
+        if block:
+            self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{0}'.format(block))
+        else:
+            self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{0}'.format(os.getpid()))
+
         LOGGER.info('Use %s to debug objects in the crawler.', self.memory_crawler)
 
         fetcher.establish_filters()
@@ -792,24 +797,6 @@ class Crawler:
     def summarize(self):
         self.scheduler.summarize()
 
-    def memory(self):
-        mem = self.scheduler.memory()
-        mem.update(self.datalayer.memory())
-
-        if self.reuse_session:
-            mem.update(self.pool.memory())
-
-        print('Memory summary')
-        for k in sorted(mem.keys()):
-            v = mem[k]
-            print('  ', k, 'len', v['len'], 'bytes', v['bytes'])
-        print('Top objects')
-        lines = io.StringIO()
-        objgraph.show_most_common_types(limit=20, file=lines)
-        lines.seek(0)
-        for l in lines.read().splitlines():
-            print('  ', l)
-
     def save(self, f):
         self.scheduler.save(self, f, )
 
@@ -1059,29 +1046,26 @@ class Crawler:
 
                     await asyncio.sleep(1)
 
-                    if self.deffered_queue_checker.done():
-                        LOGGER.warning('--> Trying to manually fill queue from deffered')
-                        while True:
-                            try:
-                                priority, ridealong = self.deffered_queue.get_nowait()
+                    LOGGER.warning('--> Trying to manually fill queue from deffered')
+                    while True:
+                        try:
+                            priority, ridealong = self.deffered_queue.get_nowait()
 
-                                result = await self.add_url(priority,ridealong)
-                                if result == 1:
-                                    LOGGER.warning('--> Ok, manually added: {0}'
-                                                   .format(ridealong['task'].req.url.url))
+                            result = await self.add_url(priority,ridealong)
+                            if result == 1:
+                                LOGGER.warning('--> Ok, manually added: {0}'
+                                               .format(ridealong['task'].req.url.url))
 
-                                else:
-                                    LOGGER.warning('--> Bad, manually not added: {0}'
-                                                   .format(ridealong['task'].req.url.url))
+                            else:
+                                LOGGER.warning('--> Bad, manually not added: {0}'
+                                               .format(ridealong['task'].req.url.url))
 
-                            except asyncio.queues.QueueEmpty:
-                                break
+                        except asyncio.queues.QueueEmpty:
+                            break
 
-                            except Exception as ex:
-                                traceback.print_exc()
-                    else:
-                        LOGGER.warning('--> Something wrong, deffered queue is NOT empty and deffered'
-                                       'queue processor is running, but the loop seems to hang')
+                        except Exception as ex:
+                            traceback.print_exc()
+
 
                 elif self.pool.busy == True:
 
@@ -1110,34 +1094,12 @@ class Crawler:
 
         self.cancel_workers()
 
-
-
-
         if self.stopping or config.read('Save', 'SaveAtExit'):
             self.summarize()
             self.datalayer.summarize()
             LOGGER.warning('saving datalayer and queues')
             self.save_all()
             LOGGER.warning('saving done')
-
-    @classmethod
-    def limit_resources(cls):
-        _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-        # XXX warn if too few compared to max_wokers?
-        if sys.platform=='darwin':
-            hard = 10240
-
-        resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))
-
-        _, hard = resource.getrlimit(resource.RLIMIT_AS)  # RLIMIT_VMEM does not exist?!
-        rlimit_as = int(config.read('System', 'RLIMIT_AS_gigabytes'))
-        rlimit_as *= 1024 * 1024 * 1024
-        if rlimit_as == 0:
-            return
-        if hard > 0 and rlimit_as > hard:
-            LOGGER.error('RLIMIT_AS limited to %d bytes by system limit', hard)
-            rlimit_as = hard
-        resource.setrlimit(resource.RLIMIT_AS, (rlimit_as, hard))
 
 
     @classmethod
@@ -1169,7 +1131,7 @@ class Crawler:
 
         config.config(args.configfile, args.config)
 
-        cls.limit_resources()
+        memory.limit_resources()
 
         if os.getenv('PYTHONASYNCIODEBUG') is not None:
             logging.captureWarnings(True)
@@ -1203,7 +1165,7 @@ class Crawler:
             loop.slow_callback_duration = float(slow_callback_duration)
             LOGGER.warning('set slow_callback_duration to %f', slow_callback_duration)
 
-        if config.read('CarbonStats'):
+        if config.read('CarbonStats', 'Enabled'):
             timer.start_carbon()
 
         if config.read('REST'):
@@ -1223,7 +1185,7 @@ class Crawler:
             loop.run_until_complete(cruzer.close())
             if app:
                 webserver.close(app)
-            if config.read('CarbonStats'):
+            if config.read('CarbonStats', 'Enabled'):
                 timer.close()
             # apparently this is needed for full aiohttp cleanup -- or is it cargo cult
             loop.stop()

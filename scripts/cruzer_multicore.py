@@ -136,7 +136,7 @@ def misc():
 
 if __name__ == '__main__':
     '''
-    python3 dup_cruzer.py --config Crawl.MaxWorkers:200  --config Crawl.MaxTries:0 --config Crawl.AllowExternalRedir:False --config Crawl.CPUControl:False --loglevel INFO
+    python3 dup_cruzer.py --config Crawl.MaxWorkers:200  --config Crawl.MaxTries:0 --config Crawl.AllowExternalRedir:False --config Crawl.CPUControl:False --config CarbonStats.Enabled:True --loglevel INFO 
     '''
 
     load_cpu()
