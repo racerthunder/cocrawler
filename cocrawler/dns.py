@@ -161,36 +161,6 @@ def expire_some(t, lru, some, stats_prefix=''):
             lru[host] = entry
             break
 
-def get_ns():
-    raise DeprecationWarning('--> left for relic for simetime')
-    ns_list = []
-
-    files = config.read('Fetcher', 'Nameservers')
-    if isinstance(files, collections.abc.Sequence):
-        # ns is passed via ARG
-        if isinstance(files,list):
-            ns_list.extend(files)
-
-        elif isinstance(files,str):
-            ns_list.append(files)
-
-        else:
-            raise TypeError('--> unknow option for ns: {0}'.format(files))
-    else:
-        # read ns file specified in config
-        file_names = files.get('File')
-        for file_name in file_names:
-            config_dir =  Path(__file__).parent.parent / 'data'
-            full_file_path = config_dir / file_name
-
-            if not full_file_path.exists():
-                raise ValueError('--> No dns file found: {0}'.format(str(full_file_path)))
-
-            ls = [line.strip() for line in full_file_path.open(encoding='utf-8') if len(line)>1 and '#' not in line]
-            ns_list.extend(ls)
-
-    return ns_list
-
 def get_resolver(ns=None):
 
     if ns is None:

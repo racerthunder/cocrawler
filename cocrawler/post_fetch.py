@@ -150,7 +150,7 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
     if config.read('Crawl', 'AllowExternalRedir') is False:
         # do not allow redirect to external domains, consequently www. or https to the same domain is left as valid
-        if url.registered_domain != next_url.registered_domain:
+        if url.hostname_without_www != next_url.hostname_without_www:
             LOGGER.debug('--> No external redirects allowed: {0} to {1}'.format(url.url, next_url.url))
             queue_next = False
 

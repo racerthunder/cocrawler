@@ -9,8 +9,10 @@ import gc
 import os
 import random
 import tempfile
+import psutil
 import sys
 
+from prettytable import PrettyTable
 import objgraph
 
 from . import config
@@ -83,8 +85,60 @@ def print_summary(f):
     for l in lines.read().splitlines():
         LOGGER.info('  %s', l)
 
-def print_summary_cruzer():
-    pass
+def dump_summary_cruzer(path,mode='a+'):
+    # data dic format = key:(raw_val,mb)
+    data_cruzer = {}
+    mem = {}
+    for d in debugs:
+        mem.update(d())
+
+    LOGGER.info('Dumping memory usage to file')
+
+    for k in sorted(mem.keys()):
+        v = mem[k]
+        dic = {k:(v['len'],_in_millions(v['bytes']))}
+        data_cruzer.update(dic)
+        #LOGGER.info('  %s len %d bytes %s', k, v['len'], _in_millions(v['bytes']))
+
+    #LOGGER.info('Top objects:')
+
+    gc.collect()
+    lines = io.StringIO()
+    objgraph.show_most_common_types(limit=20, file=lines)
+    lines.seek(0)
+    data_types = {}
+    dic = None
+    for l in lines.read().splitlines():
+        try:
+            ls = [l for l in l.split(' ') if l !='']
+            dic = {ls[0] : (int(ls[1]), _in_millions(int(ls[1])))}
+        except Exception as ex:
+            LOGGER.warning(ex)
+
+        if dic:
+            data_types.update(dic)
+
+    mem_used_percent = psutil.virtual_memory().percent
+
+    t = PrettyTable(['Object', 'len/raw', 'Mb'])
+    t.add_row(['Memory used',str(mem_used_percent),'%'])
+    t.add_row(['','',''])
+    t.add_row(['-> Cruzer <-','',''])
+    t.add_row(['','',''])
+    for key,val in data_cruzer.items():
+        t.add_row([key,val[0],val[1]])
+
+    t.add_row(['','',''])
+    t.add_row(['-> Type Objects <-','----','----'])
+    t.add_row(['','',''])
+    for key,val in data_types.items():
+        t.add_row([key,val[0],val[1]])
+
+
+    save_str = t.get_string()
+
+    with open(path,mode=mode) as f:
+        f.write(save_str+'\n\n')
 
 def limit_resources():
     _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)

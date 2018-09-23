@@ -1,0 +1,42 @@
++----------------------------+---------+-------+
+|           Object           | len/raw |   Mb  |
++----------------------------+---------+-------+
+|        Memory used         |   75.7  |   %   |
+|                            |         |       |
+|        -> Cruzer <-        |         |       |
+|                            |         |       |
+|        frozen_until        |    0    | 0.0mb |
+|         next_fetch         |    0    | 0.0mb |
+|            pool            |    0    | 0.0mb |
+|             q              |    0    | 0.3mb |
+|       resolver_cache       |    0    | 0.0mb |
+|         ridealong          |    0    | 0.0mb |
+|           robots           |    0    | 0.0mb |
+|          seen_set          |    0    | 0.0mb |
+|       task_finished        |    0    | 0.0mb |
+|       task_submited        |    0    | 0.0mb |
+|                            |         |       |
+|     -> Type Objects <-     |   ----  |  ---- |
+|                            |         |       |
+|          function          |  16270  | 0.0mb |
+|            dict            |   8071  | 0.0mb |
+|           tuple            |   7762  | 0.0mb |
+|          weakref           |   4501  | 0.0mb |
+|            list            |   4207  | 0.0mb |
+|     wrapper_descriptor     |   2581  | 0.0mb |
+|     getset_descriptor      |   2299  | 0.0mb |
+|            set             |   2214  | 0.0mb |
+|            type            |   2122  | 0.0mb |
+|     method_descriptor      |   1843  | 0.0mb |
+| builtin_function_or_method |   1747  | 0.0mb |
+|            cell            |   1273  | 0.0mb |
+|          property          |   1235  | 0.0mb |
+|          WeakSet           |   919   | 0.0mb |
+|     member_descriptor      |   811   | 0.0mb |
+|           module           |   768   | 0.0mb |
+|         ModuleSpec         |   766   | 0.0mb |
+|      SourceFileLoader      |   664   | 0.0mb |
+|         itemgetter         |   452   | 0.0mb |
+|        classmethod         |   346   | 0.0mb |
++----------------------------+---------+-------+
+

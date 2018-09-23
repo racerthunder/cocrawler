@@ -73,6 +73,7 @@ aiohttp_errors = {
     'SSL error errno:1 reason: SSLV3_ALERT_HANDSHAKE_FAILURE',
     'SSL error errno:1 reason: TLSV1_ALERT_INTERNAL_ERROR',
     'SSL error errno:1 reason: WRONG_VERSION_NUMBER',
+    'SSL error errno:1 reason: TLSV1_ALERT_PROTOCOL_VERSION'
 }
 
 

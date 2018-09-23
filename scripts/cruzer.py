@@ -7,7 +7,7 @@ import pathlib
 import logging
 from tqdm import tqdm
 from subprocess import check_output
-
+import time
 import asyncio
 
 
@@ -61,19 +61,19 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            url = 'http://httpbin.org/get'
+            #url = 'http://httpbin.org/get'
 
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url,source_url=url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
-            req.get = cookie
+            #req.get = cookie
 
 
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
-
+            #time.sleep(5)
             if counter > 0:
                 break
 
@@ -81,11 +81,10 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            print(task.doc.html)
+            #print(task.doc.html)
         else:
-            #print('--> bad code: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
-
+            pass
 
     async def task_second(self,task):
         print('---herere')
@@ -104,7 +103,12 @@ def misc():
 
 if __name__ == '__main__':
     '''
-    command line args example: --config Crawl.MaxWorkers:300 --loglevel INFO --reuse_session
+    command line args example: 
+    python3 cruzer.py\
+    --config Crawl.MaxWorkers:3\
+    --config Crawl.CPUControl:True\
+    --loglevel INFO\
+    --reuse_session
     '''
     Cruzer.run()
 

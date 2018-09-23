@@ -103,8 +103,7 @@ class Crawler:
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = reuse_session
 
-        self.CONFIG_CPU_CHECK_INTERVAL = 0.3
-        self.CONFIG_TARGET_CPU_RANGE = list(range(40,80))
+        self.CONFIG_TARGET_CPU_RANGE = list(range(40,70))
 
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
@@ -241,7 +240,8 @@ class Crawler:
         if block:
             self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{0}'.format(block))
         else:
-            self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{0}'.format(os.getpid()))
+            #self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER.{0}'.format(os.getpid()))
+            self.memory_crawler = os.path.expanduser('~/MEMORYCRAWLER')
 
         LOGGER.info('Use %s to debug objects in the crawler.', self.memory_crawler)
 
@@ -605,7 +605,6 @@ class Crawler:
                 await self.load_task_function(ridealong, f)
 
             except ValueError as e:  # if it pukes, ..
-                stats.stats_sum('--> parser raised while cruzer callback "{0}"'.format(ridealong['task'].name), 1)
                 LOGGER.info('parser raised %r', e)
 
             except Exception as ex:
@@ -696,16 +695,18 @@ class Crawler:
 
         # except asyncio.CancelledError:
         #     pass
+    def _calculate_percent_delta(self,num1, num2):
+        percent = round((float(num1)/float(num2))*100)
+        return percent
 
     async def control_cpu_usage(self):
-        await asyncio.sleep(1.0)
 
         current_process = psutil.Process(os.getpid())
         cpu_history = [max(self.CONFIG_TARGET_CPU_RANGE)] * 5 # dummy fill
 
         while True:
-            # at least 10 sec since it slow to pick up the pace
-            await asyncio.sleep(10)
+            await asyncio.sleep(5.0)
+
             cur_cpu = current_process.cpu_percent(interval=None)
             # add cpu to recent history and calculate avgCpu (5 sec)
             cpu_history.insert(0,cur_cpu)
@@ -720,23 +721,59 @@ class Crawler:
 
             if avg_cpu not in self.CONFIG_TARGET_CPU_RANGE:
 
+                block = getattr(self, 'block', None)
+
+
                 if avg_cpu > max(self.CONFIG_TARGET_CPU_RANGE):
 
                     # decreaxe max queue size by  5%
-                    LOGGER.info('--> CPU DOWN, [workers before={0} after={1}] avg cpu={2}'.format(self.max_workers,
-                                                                                         self.max_workers-limit,
-                                                                                           avg_cpu))
-                    self.max_workers -= limit
+                    LOGGER.info('--> CPU DOWN [{3}], [queue max before={0} after={1}] avg cpu={2}'.format(
+                                                                    self.scheduler.q._maxsize,
+                                                                    self.scheduler.q._maxsize-limit,
+                                                                    avg_cpu,
+                                                                    block or ''
+                                                                    ))
+                    self.scheduler.q._maxsize -= limit
+
+                    # at least 1 min  since queue to be exausted if number is down scaled
+                    await asyncio.sleep(60)
 
                 elif avg_cpu < min(self.CONFIG_TARGET_CPU_RANGE) :
-                    # increase max queue size by 5%
-                    LOGGER.info('--> CPU UP, [workers before={0} after={1}] avg cpu={2}'.format(self.max_workers,
-                                                                                     self.max_workers+limit,
-                                                                                     avg_cpu))
-                    self.max_workers +=limit
 
 
-                self.scheduler.q._maxsize = self.max_workers
+                    delta = self._calculate_percent_delta(self.scheduler.qsize(), self.scheduler.q._maxsize)
+                    # do not insrease max queue size if current queue is filled more than 80%
+                    if delta < 80:
+                        # queue is being used ok, time to heat up
+                        if self.scheduler.q._maxsize * 2 > self.max_workers:
+                            LOGGER.info('--> CPU NO UP [{0}], max queue size 2 times large than num '
+                                        'of workers'.format(block or ''))
+                        else:
+                            # increase max queue size by 5%
+                            LOGGER.info('--> CPU UP [{3}], [queue max before={0} after={1}] avg cpu={2}'.format(
+                                self.scheduler.q._maxsize,
+                                self.scheduler.q._maxsize+limit,
+                                avg_cpu,
+                                block or ''
+                            ))
+                            self.scheduler.q._maxsize +=limit
+                    else:
+                        LOGGER.info('--> CPU NO UP [{0}], queue is filled by {1} %'.format(
+                            block or '',
+                            delta
+                        ))
+
+                    # give sometiem to pick up the pace
+                    await asyncio.sleep(60)
+
+
+
+                LOGGER.info('--> CPU [{2}], AFTER  adjust, schedule size = {0}, max queue = {1}'.format(
+                                                                    self.scheduler.qsize(),
+                                                                    self.scheduler.q._maxsize,
+                                                                    block or ''
+                                                                    ))
+
 
             else:
                 # oK within the range
@@ -839,11 +876,17 @@ class Crawler:
         ru = resource.getrusage(resource.RUSAGE_SELF)
         vmem = (ru[2])/1000000.  # gigabytes
         stats.stats_set('main thread vmem', vmem)
-        stats.report()
-        stats.coroutine_report()
+
+        if config.read('Logging', 'StatsReport'):
+            stats.report()
+            stats.coroutine_report()
+
         memory.print_summary(self.memory_crawler)
+
         if self.reuse_session:
             await self.pool.close_or_wait()
+
+
 
     def hour(self):
         '''Do something once per hour'''
@@ -851,7 +894,16 @@ class Crawler:
             return
 
         self.next_hour = time.time() + 3600
-        pass
+
+        if config.read('Crawl', 'DumpMemory'):
+            block = getattr(self,'block',None)
+
+            if block:
+                path = './MEMORY_DEBUG_{0}.txt'.format(block)
+            else:
+                path = './MEMORY_DEBUG.txt'
+
+            memory.dump_summary_cruzer(path)
 
     def update_cpu_stats(self):
         elapsedc = time.process_time()  # should be since process start
@@ -1087,8 +1139,8 @@ class Crawler:
 
             self.update_cpu_stats()
             # show stats and close finished sessions
-            #await self.minute()
-            #self.hour()
+            await self.minute()
+            self.hour()
 
 
 

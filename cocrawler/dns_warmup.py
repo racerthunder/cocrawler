@@ -28,7 +28,10 @@ class Warmupper():
 
         self.ns_list = self.load_ns()
         self.data = [None,None] # [time_last_check,(alive_ns,dead_ns)]
-        self.read()
+
+        if self.warmup_interval_name != 0: # if 0 check ns every start
+            self.read()
+
         self.today = datetime.datetime.today()
 
 

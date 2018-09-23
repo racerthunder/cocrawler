@@ -118,6 +118,7 @@ class Scheduler:
                 # sleep then requeue
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
+                    LOGGER.info('--> scheduler is recycling and sleeping for {0}'.format(dt))
                     await asyncio.sleep(dt)
                     await self.q.put(work)
                     self.q.task_done()
@@ -127,7 +128,7 @@ class Scheduler:
             if dt > 0:
                 stats.stats_sum(why+' sum', dt)
                 with stats.coroutine_state(why):
-                    LOGGER.debug('--> scheduler is sleeping')
+                    LOGGER.info('--> scheduler is sleeping for {0}'.format(dt))
                     await asyncio.sleep(dt)
 
             return work

@@ -53,6 +53,7 @@ Crawl:
 #  HostBudget: None
   QueueEmbeds: False
   DebugMemory: False  # if true print memory usage to stdout
+  DumpMemory: False # if true save memory usage to file everyhour
 
 UserAgent:
   Style: crawler
@@ -70,7 +71,7 @@ Fetcher:
    File:
    - dns.txt
   DNSWarmupLog: dns_log.pickle
-  DNSWarmupInterval: 3 # days, how often to check all ns servers
+  DNSWarmupInterval: 1 # days, how often to check all ns servers, 0 = check every time before cruzer
   DNSMinAlive: 5 # min number of alive ns to allow work
   DNSTimeout: 2 # seconds, max time for check
   DNSWarmupDomain: mail.ru # domain to query ns agains
@@ -113,6 +114,7 @@ WARC:
 
 #Logging: {}
 Logging:
+  StatsReport: True # print stats report every minute
   LoggingLevel: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 #  RejectedAddUrllog: ../log/rejectedaddurl.log
 # note that the following files are all opened for append, for
