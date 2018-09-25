@@ -80,7 +80,7 @@ Fetcher:
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
-  DNSCacheMaxSize: 100000000
+  DNSCacheMaxSize: 1000
 
 GeoIP:
   DataDir: None

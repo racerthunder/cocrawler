@@ -30,6 +30,7 @@ import aiohttp
 from . import stats
 from . import config
 from . import content
+from . resp import Resp
 
 LOGGER = logging.getLogger(__name__)
 
@@ -134,14 +135,15 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
     dns_log = (0 , 'no_dns')
     if dns_entry:
         addrs, expires, _, host_geoip = dns_entry
-        if isinstance(addrs,list):
-            records_num = len(addrs)
-            if records_num > 0:
-                dns_log = (records_num, str(addrs[0]))
-            else:
-                dns_log = (0,str(addrs))
-        else:
-            dns_log = (0,str(addrs))
+        dns_log = (0,str(addrs))
+        # if isinstance(addrs,list):
+        #     records_num = len(addrs)
+        #     if records_num > 0:
+        #         dns_log = (records_num, str(addrs[0]))
+        #     else:
+        #         dns_log = (0,str(addrs))
+        # else:
+        #     dns_log = (0,str(addrs))
 
     # fr = FetcherResponse('response', 'body_bytes', 'response.request_info.headers',
     #                      't_first_byte', 't_last_byte', 'is_truncated', None)
@@ -277,16 +279,22 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         LOGGER.debug('we failed working on %s, the last exception is %s', mock_url or url.url, last_exception)
         return FetcherResponse(None, None, None, None, None, False, last_exception)
 
-    fr = FetcherResponse(response, body_bytes, response.request_info.headers,
+    # create new class response not to bring entire asyncio Response class along the workflow (memory leak)
+    resp = Resp(url=response.url,
+                status = response.status,
+                headers=response.headers,
+                raw_headers = response.raw_headers)
+
+    fr = FetcherResponse(resp, body_bytes, response.request_info.headers,
                          t_first_byte, t_last_byte, is_truncated, None)
 
-    if response.status >= 500:
-        LOGGER.debug('server returned http status %d', response.status)
+    if resp.status >= 500:
+        LOGGER.debug('server returned http status %d', resp.status)
 
-    stats.stats_sum('fetch bytes', len(body_bytes) + len(response.raw_headers))
+    stats.stats_sum('fetch bytes', len(body_bytes) + len(resp.raw_headers))
 
     stats.stats_sum(stats_prefix+'fetch URLs', 1)
-    stats.stats_sum(stats_prefix+'fetch http code=' + str(response.status), 1)
+    stats.stats_sum(stats_prefix+'fetch http code=' + str(resp.status), 1)
 
     # checks after fetch:
     # hsts header?
@@ -295,7 +303,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
 
     log_headers = None #pformat(dict(response.raw_headers),indent=10)
     LOGGER.debug('<{0} [{1}] {2}   dns [3]: {4}> \n {5}'.format(req.method,
-                                                            response.status,
+                                                                resp.status,
                                                             url.url,
                                                             dns_log[0],
                                                             dns_log[1],

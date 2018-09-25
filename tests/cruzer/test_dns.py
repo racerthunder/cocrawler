@@ -1,30 +1,65 @@
-from cocrawler.dns_warmup import Warmupper
-import cocrawler.config as config
-import argparse
+'''
+This test does talk to the network... that might be a little surprising
+for something that purports to be a unit test.
+'''
+
+import socket
 import logging
 
-ARGS = argparse.ArgumentParser(description='Cruzer web crawler')
+import aiohttp
+import pytest
+import asyncio
 
-ARGS.add_argument('--loglevel', action='store', default='DEBUG')
-ARGS.add_argument('--reuse_session',action='store_true')
-ARGS.add_argument('--config', action='append')
-ARGS.add_argument('--configfile', action='store')
-ARGS.add_argument('--no-confighome', action='store_true')
-ARGS.add_argument('--no-test', action='store_true')
-ARGS.add_argument('--printdefault', action='store_true')
-ARGS.add_argument('--load', action='store',help='load previous state of the parser')
+import cocrawler.dns as dns
+from cocrawler.urls import URL
+import aiodns.error
 
-args = ARGS.parse_args()
+levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+logging.basicConfig(level=levels[3])
 
-config.config(args.configfile, args.config)
+ns = ['8.8.8.8', '8.8.4.4']  # google
 
-logging.basicConfig(level=logging.NOTSET)
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(level=logging.INFO)
+
+
+async def test_prefetch_dns():
+    host = URL('http://buy-zyban-online.com/').hostname_without_www
+    port = 80
+    mock_url = None
+    resolver = aiohttp.resolver.AsyncResolver(nameservers=ns)
+    connector = aiohttp.connector.TCPConnector(resolver=resolver, family=socket.AF_INET)
+    session = aiohttp.ClientSession(connector=connector)
+
+    # whew
+
+    iplist = await session.connector._resolve_host(host, port)
+    print('iplist: ',str(iplist))
+    assert len(iplist) > 0
+    await session.close()
+
+
+async def test_resolver():
+    dns.setup_resolver(ns)
+
+    iplist = await dns.query('google.com', 'A')
+    assert len(iplist) > 0
+
+    iplist = await dns.query('google.com', 'AAAA')
+    assert len(iplist) > 0
+
+    iplist = await dns.query('google.com', 'NS')
+    assert len(iplist) > 0
+
+    with pytest.raises(aiodns.error.DNSError):
+        iplist = await dns.query('google.com', 'CNAME')
+        assert iplist is None
+
+    iplist = await dns.query('www.blogger.com', 'CNAME')
+    assert len(iplist) > 0
+
+
 
 def main():
-    ns_alive = Warmupper().looper()
-    print(ns_alive)
-
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(test_prefetch_dns())
 if __name__ == '__main__':
     main()

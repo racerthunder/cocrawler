@@ -64,7 +64,7 @@ class Cruzer(cocrawler.Crawler):
             #url = 'http://httpbin.org/get'
 
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
-            req = Req(url,source_url=url)
+            req = Req(url)
             domain = req.url.hostname_without_www
 
             cookie = {'data':domain,'data2':'val2'}
@@ -106,7 +106,8 @@ if __name__ == '__main__':
     command line args example: 
     python3 cruzer.py\
     --config Crawl.MaxWorkers:3\
-    --config Crawl.CPUControl:True\
+    --config Crawl.CPUControl:False\
+    --config Crawl.DumpMemory:True\
     --loglevel INFO\
     --reuse_session
     '''

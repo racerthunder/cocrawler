@@ -67,6 +67,7 @@ def print_summary(f):
         return
 
     mem = {}
+
     for d in debugs:
         mem.update(d())
 
@@ -89,6 +90,7 @@ def dump_summary_cruzer(path,mode='a+'):
     # data dic format = key:(raw_val,mb)
     data_cruzer = {}
     mem = {}
+
     for d in debugs:
         mem.update(d())
 
@@ -102,7 +104,7 @@ def dump_summary_cruzer(path,mode='a+'):
 
     #LOGGER.info('Top objects:')
 
-    gc.collect()
+    #gc.collect()
     lines = io.StringIO()
     objgraph.show_most_common_types(limit=20, file=lines)
     lines.seek(0)
@@ -134,11 +136,10 @@ def dump_summary_cruzer(path,mode='a+'):
     for key,val in data_types.items():
         t.add_row([key,val[0],val[1]])
 
-
-    save_str = t.get_string()
+    save_str = t.get_string() + '\n\n'
 
     with open(path,mode=mode) as f:
-        f.write(save_str+'\n\n')
+        f.write(save_str)
 
 def limit_resources():
     _, hard = resource.getrlimit(resource.RLIMIT_NOFILE)

@@ -114,7 +114,7 @@ class Crawler:
         self.paused = paused
         self.no_test = no_test
         self.next_minute = 0
-        self.next_hour = time.time() + 3600
+        self.next_hour = time.time() + 1800
         self.max_page_size = int(config.read('Crawl', 'MaxPageSize'))
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
@@ -149,9 +149,14 @@ class Crawler:
             raise ValueError('proxies not yet supported')
 
         # TODO: save the kwargs in case we want to make a ProxyConnector deeper down
-        self.conn_kwargs = {'use_dns_cache': False, 'resolver': self.resolver,
-                            'limit': 0,
-                            'enable_cleanup_closed': True}
+        self.conn_kwargs = {'use_dns_cache': False,
+                            'resolver': self.resolver,
+                            'limit': self.max_workers * 2,
+                            'enable_cleanup_closed': True,
+                            #'verify_ssl':False,
+                            #'force_close': True  # TODO: for test puprose
+                            }
+
         local_addr = config.read('Fetcher', 'LocalAddr')
         if local_addr:
             self.conn_kwargs['local_addr'] = (local_addr, 0)
@@ -160,8 +165,9 @@ class Crawler:
         if self.reuse_session:
             self.conn_kwargs['force_close']=True
 
-
         conn = aiohttp.connector.TCPConnector(**self.conn_kwargs)
+        #TODO: https://github.com/aio-libs/aiohttp/issues/1767
+        #conn._cleanup_closed_disabled = True # for testing
         self.connector = conn
 
         connect_timeout = config.read('Crawl', 'ConnectTimeout')
@@ -409,7 +415,7 @@ class Crawler:
             # XXX jsonlog hard fail
             # XXX remember that this host had a hard fail
             stats.stats_sum('retries completely exhausted', 1)
-            self.scheduler.del_ridealong(surt)
+
             LOGGER.debug('--> retries completely exhausted = {0}, surt: {1}, domain: {2} '.format(
                 retries_left, surt, ridealong['task'].req.url.hostname
             ))
@@ -514,7 +520,7 @@ class Crawler:
         _session = self.pool.get_session(ridealong['task'].session_id)
 
 
-
+        # f = NamedTuple
         f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
                                     headers=req_headers, proxy=proxy, mock_url=mock_url,dns_entry=entry)
 
@@ -705,10 +711,10 @@ class Crawler:
         cpu_history = [max(self.CONFIG_TARGET_CPU_RANGE)] * 5 # dummy fill
 
         while True:
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(30)
 
             cur_cpu = current_process.cpu_percent(interval=None)
-            # add cpu to recent history and calculate avgCpu (5 sec)
+            # add cpu to recent history and calculate avgCpu (30 sec)
             cpu_history.insert(0,cur_cpu)
 
 
@@ -719,65 +725,69 @@ class Crawler:
 
             limit = max((self.max_workers * 5) // 100, 1)
 
-            if avg_cpu not in self.CONFIG_TARGET_CPU_RANGE:
 
-                block = getattr(self, 'block', None)
+            block = getattr(self, 'block', None)
 
 
-                if avg_cpu > max(self.CONFIG_TARGET_CPU_RANGE):
+            if avg_cpu > max(self.CONFIG_TARGET_CPU_RANGE):
+
+
+                delta = self._calculate_percent_delta(self.scheduler.q._maxsize, self.max_workers)
+
+                if delta < 20:
+                    LOGGER.info('--> CPU NO DOWN [{0}], max queue size: {1} is less than 20% of number of workers: {2}'.format(
+                        block or '',
+                        self.scheduler.q._maxsize,
+                        self.max_workers
+                        ))
+                else:
+                    self.scheduler.q._maxsize -= limit
 
                     # decreaxe max queue size by  5%
                     LOGGER.info('--> CPU DOWN [{3}], [queue max before={0} after={1}] avg cpu={2}'.format(
-                                                                    self.scheduler.q._maxsize,
-                                                                    self.scheduler.q._maxsize-limit,
-                                                                    avg_cpu,
-                                                                    block or ''
-                                                                    ))
-                    self.scheduler.q._maxsize -= limit
+                        self.scheduler.q._maxsize,
+                        self.scheduler.q._maxsize-limit,
+                        avg_cpu,
+                        block or ''
+                    ))
 
                     # at least 1 min  since queue to be exausted if number is down scaled
                     await asyncio.sleep(60)
 
-                elif avg_cpu < min(self.CONFIG_TARGET_CPU_RANGE) :
+            elif avg_cpu < min(self.CONFIG_TARGET_CPU_RANGE) :
 
 
-                    delta = self._calculate_percent_delta(self.scheduler.qsize(), self.scheduler.q._maxsize)
-                    # do not insrease max queue size if current queue is filled more than 80%
-                    if delta < 80:
-                        # queue is being used ok, time to heat up
-                        if self.scheduler.q._maxsize * 2 > self.max_workers:
-                            LOGGER.info('--> CPU NO UP [{0}], max queue size 2 times large than num '
-                                        'of workers'.format(block or ''))
-                        else:
-                            # increase max queue size by 5%
-                            LOGGER.info('--> CPU UP [{3}], [queue max before={0} after={1}] avg cpu={2}'.format(
-                                self.scheduler.q._maxsize,
-                                self.scheduler.q._maxsize+limit,
-                                avg_cpu,
-                                block or ''
-                            ))
-                            self.scheduler.q._maxsize +=limit
+                delta = self._calculate_percent_delta(self.scheduler.qsize(), self.scheduler.q._maxsize)
+                # do not insrease max queue size if current queue is filled more than 80%
+                if delta < 80:
+                    # queue is being used ok, time to heat up
+                    if self.scheduler.q._maxsize * 2 > self.max_workers:
+                        LOGGER.info('--> CPU NO UP [{0}], max queue size 2 times large than num '
+                                    'of workers'.format(block or ''))
                     else:
-                        LOGGER.info('--> CPU NO UP [{0}], queue is filled by {1} %'.format(
-                            block or '',
-                            delta
+                        # increase max queue size by 5%
+                        LOGGER.info('--> CPU UP [{3}], [queue max before={0} after={1}] avg cpu={2}'.format(
+                            self.scheduler.q._maxsize,
+                            self.scheduler.q._maxsize+limit,
+                            avg_cpu,
+                            block or ''
                         ))
+                        self.scheduler.q._maxsize +=limit
 
-                    # give sometiem to pick up the pace
-                    await asyncio.sleep(60)
-
-
-
-                LOGGER.info('--> CPU [{2}], AFTER  adjust, schedule size = {0}, max queue = {1}'.format(
-                                                                    self.scheduler.qsize(),
-                                                                    self.scheduler.q._maxsize,
-                                                                    block or ''
-                                                                    ))
-
+                        # give sometiem to pick up the pace
+                        await asyncio.sleep(60)
+                else:
+                    LOGGER.info('--> CPU NO UP [{0}], queue is filled by {1} %'.format(
+                        block or '',
+                        delta
+                    ))
 
             else:
                 # oK within the range
-                LOGGER.info('--> CPU RANGE')
+                LOGGER.info('--> CPU RANGE [{0}], avg_cpu = {1} %'.format(
+                    block or '',
+                    avg_cpu
+                ))
 
 
 
@@ -893,7 +903,7 @@ class Crawler:
         if time.time() < self.next_hour:
             return
 
-        self.next_hour = time.time() + 3600
+        self.next_hour = time.time() + 1800
 
         if config.read('Crawl', 'DumpMemory'):
             block = getattr(self,'block',None)
@@ -914,7 +924,7 @@ class Crawler:
 
         if parent_task is not None:
             # parent_task exists only in deffered queue
-            task.add_parent(parent_task)
+            task.add_parent(parent_task.name)
             task.set_session_id(parent_task.session_id)
 
         else:
@@ -984,6 +994,7 @@ class Crawler:
             except Exception as ex:
                 result = 'exception_pass' # make result real here only to mark task as done (even with error)
                 traceback.print_exc()
+                self.log_master.write('./deffered_log.txt',str(ex),close_everytime=True)
                 #break
 
             if result is not None:
@@ -1041,7 +1052,7 @@ class Crawler:
         '''
         Run the crawler until it's out of work
         '''
-        await self.minute()  # print pre-start stats
+        #await self.minute()  # print pre-start stats
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
 
@@ -1147,11 +1158,12 @@ class Crawler:
         self.cancel_workers()
 
         if self.stopping or config.read('Save', 'SaveAtExit'):
-            self.summarize()
-            self.datalayer.summarize()
-            LOGGER.warning('saving datalayer and queues')
-            self.save_all()
-            LOGGER.warning('saving done')
+            pass
+            #self.summarize()
+            #self.datalayer.summarize()
+            #LOGGER.warning('saving datalayer and queues')
+            #self.save_all()
+            #LOGGER.warning('saving done')
 
 
     @classmethod

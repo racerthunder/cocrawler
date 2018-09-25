@@ -1,41 +1,214 @@
 +----------------------------+---------+-------+
 |           Object           | len/raw |   Mb  |
 +----------------------------+---------+-------+
-|        Memory used         |   75.7  |   %   |
+|        Memory used         |   13.7  |   %   |
 |                            |         |       |
 |        -> Cruzer <-        |         |       |
 |                            |         |       |
 |        frozen_until        |    0    | 0.0mb |
 |         next_fetch         |    0    | 0.0mb |
 |            pool            |    0    | 0.0mb |
-|             q              |    0    | 0.3mb |
+|             q              |    3    | 0.3mb |
+|       req_weak_cache       |    7    | 0.0mb |
 |       resolver_cache       |    0    | 0.0mb |
-|         ridealong          |    0    | 0.0mb |
+|         ridealong          |    7    | 0.3mb |
 |           robots           |    0    | 0.0mb |
-|          seen_set          |    0    | 0.0mb |
+|          seen_set          |    6    | 0.0mb |
 |       task_finished        |    0    | 0.0mb |
 |       task_submited        |    0    | 0.0mb |
 |                            |         |       |
 |     -> Type Objects <-     |   ----  |  ---- |
 |                            |         |       |
-|          function          |  16270  | 0.0mb |
-|            dict            |   8071  | 0.0mb |
-|           tuple            |   7762  | 0.0mb |
-|          weakref           |   4501  | 0.0mb |
-|            list            |   4207  | 0.0mb |
+|          function          |  14280  | 0.0mb |
+|            dict            |   7603  | 0.0mb |
+|           tuple            |   7352  | 0.0mb |
+|          weakref           |   4377  | 0.0mb |
+|            list            |   3706  | 0.0mb |
+|            set             |   2174  | 0.0mb |
+|     getset_descriptor      |   2038  | 0.0mb |
+|            type            |   1999  | 0.0mb |
+|     wrapper_descriptor     |   1662  | 0.0mb |
+|     method_descriptor      |   1620  | 0.0mb |
+| builtin_function_or_method |   1584  | 0.0mb |
+|          property          |   1213  | 0.0mb |
+|            cell            |   1140  | 0.0mb |
+|          WeakSet           |   920   | 0.0mb |
+|     member_descriptor      |   791   | 0.0mb |
+|           module           |   657   | 0.0mb |
+|         ModuleSpec         |   656   | 0.0mb |
+|      SourceFileLoader      |   564   | 0.0mb |
+|         itemgetter         |   489   | 0.0mb |
+|       MovedAttribute       |   337   | 0.0mb |
++----------------------------+---------+-------+
+
++----------------------------+---------+-------+
+|           Object           | len/raw |   Mb  |
++----------------------------+---------+-------+
+|        Memory used         |   13.5  |   %   |
+|                            |         |       |
+|        -> Cruzer <-        |         |       |
+|                            |         |       |
+|        frozen_until        |    0    | 0.0mb |
+|         next_fetch         |    0    | 0.0mb |
+|            pool            |    0    | 0.0mb |
+|             q              |    3    | 0.3mb |
+|       req_weak_cache       |    10   | 0.0mb |
+|       resolver_cache       |    0    | 0.0mb |
+|         ridealong          |    4    | 0.3mb |
+|           robots           |    0    | 0.0mb |
+|          seen_set          |    18   | 0.0mb |
+|       task_finished        |    0    | 0.0mb |
+|       task_submited        |    0    | 0.0mb |
+|                            |         |       |
+|     -> Type Objects <-     |   ----  |  ---- |
+|                            |         |       |
+|          function          |  14317  | 0.0mb |
+|            dict            |   7670  | 0.0mb |
+|           tuple            |   7440  | 0.0mb |
+|          weakref           |   4406  | 0.0mb |
+|            list            |   3721  | 0.0mb |
+|            set             |   2174  | 0.0mb |
+|     getset_descriptor      |   2040  | 0.0mb |
+|            type            |   2005  | 0.0mb |
+|     wrapper_descriptor     |   1662  | 0.0mb |
+|     method_descriptor      |   1620  | 0.0mb |
+| builtin_function_or_method |   1587  | 0.0mb |
+|          property          |   1213  | 0.0mb |
+|            cell            |   1141  | 0.0mb |
+|          WeakSet           |   920   | 0.0mb |
+|     member_descriptor      |   791   | 0.0mb |
+|           module           |   657   | 0.0mb |
+|         ModuleSpec         |   656   | 0.0mb |
+|      SourceFileLoader      |   564   | 0.0mb |
+|         itemgetter         |   489   | 0.0mb |
+|        classmethod         |   337   | 0.0mb |
++----------------------------+---------+-------+
+
++----------------------------+---------+-------+
+|           Object           | len/raw |   Mb  |
++----------------------------+---------+-------+
+|        Memory used         |   13.6  |   %   |
+|                            |         |       |
+|        -> Cruzer <-        |         |       |
+|                            |         |       |
+|        frozen_until        |    0    | 0.0mb |
+|         next_fetch         |    0    | 0.0mb |
+|            pool            |    0    | 0.0mb |
+|             q              |    3    | 0.3mb |
+|       req_weak_cache       |    10   | 0.0mb |
+|       resolver_cache       |    1    | 0.0mb |
+|         ridealong          |    4    | 0.3mb |
+|           robots           |    0    | 0.0mb |
+|          seen_set          |    32   | 0.0mb |
+|       task_finished        |    0    | 0.0mb |
+|       task_submited        |    0    | 0.0mb |
+|                            |         |       |
+|     -> Type Objects <-     |   ----  |  ---- |
+|                            |         |       |
+|          function          |  14416  | 0.0mb |
+|            dict            |   7724  | 0.0mb |
+|           tuple            |   7551  | 0.0mb |
+|          weakref           |   4410  | 0.0mb |
+|            list            |   3739  | 0.0mb |
+|            set             |   2174  | 0.0mb |
+|     getset_descriptor      |   2040  | 0.0mb |
+|            type            |   2009  | 0.0mb |
+|     wrapper_descriptor     |   1662  | 0.0mb |
+|     method_descriptor      |   1620  | 0.0mb |
+| builtin_function_or_method |   1593  | 0.0mb |
+|          property          |   1213  | 0.0mb |
+|            cell            |   1143  | 0.0mb |
+|          WeakSet           |   920   | 0.0mb |
+|     member_descriptor      |   791   | 0.0mb |
+|           module           |   658   | 0.0mb |
+|         ModuleSpec         |   657   | 0.0mb |
+|      SourceFileLoader      |   565   | 0.0mb |
+|         itemgetter         |   489   | 0.0mb |
+|        classmethod         |   341   | 0.0mb |
++----------------------------+---------+-------+
+
++----------------------------+---------+-------+
+|           Object           | len/raw |   Mb  |
++----------------------------+---------+-------+
+|        Memory used         |   13.6  |   %   |
+|                            |         |       |
+|        -> Cruzer <-        |         |       |
+|                            |         |       |
+|        frozen_until        |    0    | 0.0mb |
+|         next_fetch         |    0    | 0.0mb |
+|            pool            |    0    | 0.0mb |
+|             q              |    3    | 0.3mb |
+|       req_weak_cache       |    10   | 0.0mb |
+|       resolver_cache       |    1    | 0.0mb |
+|         ridealong          |    4    | 0.3mb |
+|           robots           |    0    | 0.0mb |
+|          seen_set          |    44   | 0.0mb |
+|       task_finished        |    0    | 0.0mb |
+|       task_submited        |    0    | 0.0mb |
+|                            |         |       |
+|     -> Type Objects <-     |   ----  |  ---- |
+|                            |         |       |
+|          function          |  14482  | 0.0mb |
+|            dict            |   7829  | 0.0mb |
+|           tuple            |   7710  | 0.0mb |
+|          weakref           |   4421  | 0.0mb |
+|            list            |   3752  | 0.0mb |
+|            set             |   2174  | 0.0mb |
+|     getset_descriptor      |   2040  | 0.0mb |
+|            type            |   2020  | 0.0mb |
+|     wrapper_descriptor     |   1662  | 0.0mb |
+|     method_descriptor      |   1620  | 0.0mb |
+| builtin_function_or_method |   1593  | 0.0mb |
+|          property          |   1213  | 0.0mb |
+|            cell            |   1143  | 0.0mb |
+|          WeakSet           |   920   | 0.0mb |
+|     member_descriptor      |   791   | 0.0mb |
+|           module           |   658   | 0.0mb |
+|         ModuleSpec         |   657   | 0.0mb |
+|      SourceFileLoader      |   565   | 0.0mb |
+|         itemgetter         |   489   | 0.0mb |
+|        classmethod         |   352   | 0.0mb |
++----------------------------+---------+-------+
+
++----------------------------+---------+-------+
+|           Object           | len/raw |   Mb  |
++----------------------------+---------+-------+
+|        Memory used         |   87.2  |   %   |
+|                            |         |       |
+|        -> Cruzer <-        |         |       |
+|                            |         |       |
+|        frozen_until        |    0    | 0.0mb |
+|         next_fetch         |    1    | 0.0mb |
+|            pool            |    0    | 0.0mb |
+|             q              |    0    | 0.3mb |
+|       req_weak_cache       |    1    | 0.0mb |
+|       resolver_cache       |    2    | 0.0mb |
+|         ridealong          |    0    | 0.0mb |
+|           robots           |    0    | 0.0mb |
+|          seen_set          |    1    | 0.0mb |
+|       task_finished        |    0    | 0.0mb |
+|       task_submited        |    0    | 0.0mb |
+|                            |         |       |
+|     -> Type Objects <-     |   ----  |  ---- |
+|                            |         |       |
+|          function          |  16345  | 0.0mb |
+|            dict            |   8176  | 0.0mb |
+|           tuple            |   7892  | 0.0mb |
+|          weakref           |   4638  | 0.0mb |
+|            list            |   4258  | 0.0mb |
 |     wrapper_descriptor     |   2581  | 0.0mb |
-|     getset_descriptor      |   2299  | 0.0mb |
-|            set             |   2214  | 0.0mb |
+|     getset_descriptor      |   2301  | 0.0mb |
+|            set             |   2216  | 0.0mb |
 |            type            |   2122  | 0.0mb |
 |     method_descriptor      |   1843  | 0.0mb |
-| builtin_function_or_method |   1747  | 0.0mb |
+| builtin_function_or_method |   1751  | 0.0mb |
 |            cell            |   1273  | 0.0mb |
 |          property          |   1235  | 0.0mb |
-|          WeakSet           |   919   | 0.0mb |
+|          WeakSet           |   920   | 0.0mb |
 |     member_descriptor      |   811   | 0.0mb |
-|           module           |   768   | 0.0mb |
-|         ModuleSpec         |   766   | 0.0mb |
-|      SourceFileLoader      |   664   | 0.0mb |
+|           module           |   770   | 0.0mb |
+|         ModuleSpec         |   768   | 0.0mb |
+|      SourceFileLoader      |   665   | 0.0mb |
 |         itemgetter         |   452   | 0.0mb |
 |        classmethod         |   346   | 0.0mb |
 +----------------------------+---------+-------+

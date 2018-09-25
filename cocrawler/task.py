@@ -5,6 +5,7 @@ from .document import Document
 import asyncio
 
 class Task():
+
     def __init__(self,name,req,**kwargs):
         self.req = req
         self.last_url = None # store final address of the request

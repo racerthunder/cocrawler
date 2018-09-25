@@ -41,7 +41,7 @@ fast_stats = [
     {'name': 'robots fetched', 'kind': 'delta', 'qps_total': True},
 
     #{'name': 'fetch bytes', 'kind': 'delta', 'normalize': 8/1000000000.},  # has its own bandwidth graph
-    {'name': 'fetch bytes', 'kind': 'delta', 'normalize': 8/1000000.},  # has its own bandwidth graph
+    {'name': 'fetch bytes', 'kind': 'delta', 'normalize': 8/100000.},  # has its own bandwidth graph
     {'name': 'priority'},  # has its own priority graph, called 'depth from seed'
     {'name': 'network limit'},
 
@@ -65,7 +65,7 @@ slow_stats = [
     {'name': 'added seeds'},
     {'name': 'fetch URLs'},
     #{'name': 'fetch bytes', 'normalize': 1/1000000000.},
-    {'name': 'fetch bytes', 'normalize': 1/100000.},
+    {'name': 'fetch bytes', 'normalize': 1/10000.},
     {'name': 'robots denied'},
     {'name': 'retries completely exhausted'},
     {'name': 'max queue size'},

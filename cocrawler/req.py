@@ -1,9 +1,10 @@
 from weakref import WeakKeyDictionary
 from inspect import isfunction
 from furl import furl
-
+import pympler
 
 from .urls import URL
+from . import memory
 
 
 class ValidatorError(Exception):pass
@@ -44,6 +45,8 @@ class SessionData():
         self._data = WeakKeyDictionary()
         self.validator = Validator(validator)
 
+        if validator == URL:
+            memory.register_debug(self.memory)
 
     def __set__(self, instance, value):
 
@@ -55,6 +58,11 @@ class SessionData():
     def __get__(self, instance, owner):
         return self._data.get(instance)
 
+    def memory(self):
+        req_session_cache = {}
+        req_session_cache['bytes'] = pympler.asizeof.asizesof(self._data)[0]
+        req_session_cache['len'] = len(self._data)
+        return {'req_weak_cache': req_session_cache}
 
 class SessionData_Get(SessionData):
 
@@ -138,3 +146,5 @@ class Req():
 
     def __str__(self):
         return 'Req object for url: {0}'.format(self.url.url)
+
+
