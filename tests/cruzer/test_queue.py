@@ -43,8 +43,29 @@ async def main():
             task.cancel()
 
 
+async def test_queue():
+    deffered_queue = asyncio.Queue()
+
+    deffered_queue.put_nowait('item')
+
+    await asyncio.sleep(1)
+    while True:
+        try:
+
+            ridealong = deffered_queue.get_nowait()
+
+            print(ridealong)
+            raise ValueError('--')
+
+        except asyncio.queues.QueueEmpty:
+            print('-> break recived')
+            break
+
+        except Exception as ex:
+            print('--> errr')
+
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    loop.run_until_complete(test_queue())
 

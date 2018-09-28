@@ -150,7 +150,7 @@ class CarbonTimer:
             t = time.time()
             elapsed = t - self.last_t
 
-            if elapsed > self.dt*1.2:
+            if elapsed > self.dt*1.4:
                 # this indicates that there's too many workers and too much cpu burn going on
                 LOGGER.warning('tried to sleep for %f, but actually slept for %f', self.dt, elapsed)
 

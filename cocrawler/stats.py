@@ -191,7 +191,7 @@ def report():
         LOGGER.info('  Crawl rate is %d pages/main-thread-cpu-second', int(sums['fetch URLs']/elapsedc))
     if sums.get('fetch bytes', 0) and elapsed > 0:
         #LOGGER.info('  Crawl rate is %.2f gigabits/s', sums['fetch bytes']/elapsed*8/1000000000.)
-        LOGGER.info('  Crawl rate is %.2f mb/s', sums['fetch bytes']/elapsed*8/10000.)
+        LOGGER.info('  Crawl rate is %.2f mb/s', sums['fetch bytes']/elapsed*8/100000.)
 
 
 def coroutine_report():

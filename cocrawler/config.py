@@ -75,7 +75,7 @@ Fetcher:
   DNSMinAlive: 5 # min number of alive ns to allow work
   DNSTimeout: 2 # seconds, max time for check
   DNSWarmupDomain: mail.ru # domain to query ns agains
-   
+  CleanClosedSSL: True # every 10000 requests, forcelly call _cleanup_closed() on Connector  
   NameserverTries: 3
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost

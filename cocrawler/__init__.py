@@ -104,7 +104,7 @@ class Crawler:
         self.reuse_session = reuse_session
 
         self.CONFIG_TARGET_CPU_RANGE = list(range(40,70))
-
+        self.cleanup_ssl_every = 10000 # forcelly call _cleanup_closed() on Connector
         # subsequent queries
         asyncio.set_event_loop_policy(FixupEventLoopPolicy())
         self.loop = asyncio.get_event_loop()
@@ -152,7 +152,7 @@ class Crawler:
         self.conn_kwargs = {'use_dns_cache': False,
                             'resolver': self.resolver,
                             'limit': self.max_workers * 2,
-                            'enable_cleanup_closed': True,
+                            'enable_cleanup_closed': True, # works together with self.connector._cleanup_closed()
                             #'verify_ssl':False,
                             #'force_close': True  # TODO: for test puprose
                             }
@@ -236,7 +236,8 @@ class Crawler:
                 LOGGER.info('after adding seeds, work queue is %r urls', self.scheduler.qsize())
                 stats.stats_max('initial seeds', self.scheduler.qsize())
 
-        self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{0}'.format(os.getpid()))
+        #self.stop_crawler = os.path.expanduser('~/STOPCRAWLER.{0}'.format(os.getpid()))
+        self.stop_crawler = os.path.expanduser('~/STOPCRAWLER')
         LOGGER.info('Touch %s to stop the crawler.', self.stop_crawler)
 
         self.pause_crawler = os.path.expanduser('~/PAUSECRAWLER.{0}'.format(os.getpid()))
@@ -382,7 +383,7 @@ class Crawler:
 
     def on_finish(self):
         # this is the last method is called before exiting program
-        # make external methods calls here, since crawler calls 'exit'
+        # make external methods calls here, since crawler calls sys 'exit'
         pass
 
     async def close(self):
@@ -721,7 +722,7 @@ class Crawler:
             # start adjusting
             del cpu_history[5:]
 
-            avg_cpu = sum(cpu_history) / len(cpu_history)
+            avg_cpu = int(sum(cpu_history) / len(cpu_history))
 
             limit = max((self.max_workers * 5) // 100, 1)
 
@@ -781,6 +782,11 @@ class Crawler:
                         block or '',
                         delta
                     ))
+                    if delta == 100:
+                        LOGGER.info('--> CPU NO UP [{0}], queue 100% filled, states = {1} %'.format(
+                            block or '',
+                            str(self.get_workers_state())
+                        ))
 
             else:
                 # oK within the range
@@ -973,6 +979,13 @@ class Crawler:
 
 
     async def deffered_queue_processor(self):
+        """
+        this queue give controal only in 2 cases: 1. main queue is full 2. deffered queue is empty
+
+        if there are things in deffered queue we fill main queue in one go
+        therefore do not place extra sleeps here
+        :return:
+        """
         while True:
             result = None
             try:
@@ -994,7 +1007,6 @@ class Crawler:
             except Exception as ex:
                 result = 'exception_pass' # make result real here only to mark task as done (even with error)
                 traceback.print_exc()
-                self.log_master.write('./deffered_log.txt',str(ex),close_everytime=True)
                 #break
 
             if result is not None:
@@ -1006,10 +1018,13 @@ class Crawler:
 
 
 
+
     async def queue_producer(self):
         while True:
             # deffered queue has priority over initail urls, that why we also include it here
             # do not try to get items from this queue here since it could be racy with main coroutine
+            task = None
+
             if not self.deffered_queue.empty():
                 await asyncio.sleep(0.1)
             try:
@@ -1026,9 +1041,12 @@ class Crawler:
                 traceback.print_exc()
                 #break
 
-            ride_along = self.generate_ridealong(task)
+            if task is not None:
+                ride_along = self.generate_ridealong(task)
 
-            await self.add_url(1,ride_along)
+                await self.add_url(1,ride_along)
+            else:
+                LOGGER.warning('--> Queue_producer got empty task object.')
 
             if self.stopping:
                 raise asyncio.CancelledError
@@ -1043,8 +1061,8 @@ class Crawler:
 
         return {'workers_alive':workers_alive_num,
                 'workers_dead':workers_dead_num,
-                'deffered_queue_processor':is_alive_deffered_queue_processor,
-                'main_queue_producer':is_alive_queue_producer
+                'deffered_queue_processor_is_done':is_alive_deffered_queue_processor,
+                'main_queue_producer_is_done':is_alive_queue_producer
                 }
 
 
@@ -1098,16 +1116,24 @@ class Crawler:
                 # this is a little racy with how awaiting work is set and the queue is read
                 # while we're in this join we aren't looking for STOPCRAWLER etc
 
+                if not self.producer.done():
+                    # in any case, if initial urls are not consumed do not even try to check for completion
+                    # we can fall here prematurelly because of garbage collector and coroutines being too busy
+                    LOGGER.info('--> Main queue is about to join, but initial urls are not consumed')
+                    await asyncio.sleep(1)
+                    continue
+
+                await asyncio.sleep(1) # give a chance to defered queue to finalize
+
                 if self.reuse_session:
                     await self.pool.close_or_wait()
 
                 if not self.deffered_queue.empty():
-                    # there is no point calling join on this queue since it's marked as complete once items is taken
-                    LOGGER.warning('--> queue is about to join, but we still have things in deffered queue,'
+
+                    LOGGER.warning('--> main queue is about to join, but we still have things in deffered queue,'
                                    'size: {0}'.format(self.deffered_queue.qsize()))
                     LOGGER.warning('--> Workers stats: {0}'.format(str(self.get_workers_state())))
 
-                    await asyncio.sleep(1)
 
                     LOGGER.warning('--> Trying to manually fill queue from deffered')
                     while True:
@@ -1128,6 +1154,10 @@ class Crawler:
 
                         except Exception as ex:
                             traceback.print_exc()
+
+
+                        self.deffered_queue.task_done()
+                        await asyncio.sleep(0.1)
 
 
                 elif self.pool.busy == True:

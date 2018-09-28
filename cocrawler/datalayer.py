@@ -64,6 +64,15 @@ class Datalayer:
         queued it or already crawled it.'''
         self.seen_set.add(url.surt)
 
+        if config.read('Fetcher', 'CleanClosedSSL'):
+            if not self.cocrawler.conn_kwargs['enable_cleanup_closed']:
+                raise ValueError('--> CleanClosedSSL requires [enable_cleanup_closed] to be True for Connector')
+
+            if len(self.seen_set) % self.cocrawler.cleanup_ssl_every == 0:
+                transports = len(self.cocrawler.connector._cleanup_closed_transports)
+                self.cocrawler.connector._cleanup_closed()
+                LOGGER.info('--> SSL Cleaned up {0} ssl connections'.format(transports))
+
     def seen(self, url):
         return url.surt in self.seen_set
 

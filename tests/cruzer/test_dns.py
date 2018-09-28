@@ -22,7 +22,7 @@ ns = ['8.8.8.8', '8.8.4.4']  # google
 
 
 async def test_prefetch_dns():
-    host = URL('http://buy-zyban-online.com/').hostname_without_www
+    host = URL('http://onlineventolinhfa.com/').hostname_without_www
     port = 80
     mock_url = None
     resolver = aiohttp.resolver.AsyncResolver(nameservers=ns)

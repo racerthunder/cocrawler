@@ -25,6 +25,7 @@ from pprint import pformat
 import asyncio
 import logging
 import aiohttp
+import async_timeout
 
 
 from . import stats
@@ -127,27 +128,29 @@ FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'req_
                                                  't_first_byte', 't_last_byte', 'is_truncated',
                                                  'last_exception'])
 
+def get_dns_log(dns_entry):
+    dns_log = (0 , 'no_dns')
+    if dns_entry:
+        addrs, expires, _, host_geoip = dns_entry
+        dns_log = (0,str(addrs))
+        if isinstance(addrs,list):
+            records_num = len(addrs)
+            if records_num > 0:
+                dns_log = (records_num, str(addrs[0]))
+            else:
+                dns_log = (0,str(addrs))
+        else:
+            dns_log = (0,str(addrs))
+
+    return dns_log
 
 async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,dns_entry=None,
                 allow_redirects=None, max_redirects=None,
                 stats_prefix='', max_page_size=-1):
 
-    dns_log = (0 , 'no_dns')
-    if dns_entry:
-        addrs, expires, _, host_geoip = dns_entry
-        dns_log = (0,str(addrs))
-        # if isinstance(addrs,list):
-        #     records_num = len(addrs)
-        #     if records_num > 0:
-        #         dns_log = (records_num, str(addrs[0]))
-        #     else:
-        #         dns_log = (0,str(addrs))
-        # else:
-        #     dns_log = (0,str(addrs))
+    dns_log = get_dns_log(dns_entry)
 
-    # fr = FetcherResponse('response', 'body_bytes', 'response.request_info.headers',
-    #                      't_first_byte', 't_last_byte', 'is_truncated', None)
-    #
+
     if proxy:  # pragma: no cover
         proxy = aiohttp.ProxyConnector(proxy=proxy)
         # XXX we need to preserve the existing connector config (see cocrawler.__init__ for conn_kwargs)
@@ -165,57 +168,61 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         blocks = []
         left = max_page_size
 
-        with stats.coroutine_state(stats_prefix+'fetcher fetching'):
-            with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
+        # Dead straight timeout to fight hanged mostly https connections in aiohttp pool
+        with async_timeout.timeout(int(config.read('Crawl', 'PageTimeout'))):
+            with stats.coroutine_state(stats_prefix+'fetcher fetching'):
+                with stats.record_latency(stats_prefix+'fetcher fetching', url=url.url):
 
-                if req.headers and len(req.headers):
-                    if headers is None:
-                        headers = req.headers
+                    if req.headers and len(req.headers):
+                        if headers is None:
+                            headers = req.headers
+                        else:
+                            headers.update(req.headers)
+
+                    if req.cookies is not None:
+
+                        if isinstance(session.cookie_jar,aiohttp.DummyCookieJar):
+                            raise ValueError('--> Trying to set cookie but cookiejar is dummy, enable --reuse_session for cruzer!')
+
+                        session.cookie_jar.update_cookies(req.cookies)
+
+                    if req.post is not None:
+                        if req.multipart_post:
+                            post_data = _generate_form_data(multipart_post=req.multipart_post,**req.post)
+                        else:
+                            post_data = req.post
                     else:
-                        headers.update(req.headers)
+                        post_data = None
 
-                if req.cookies is not None:
 
-                    if isinstance(session.cookie_jar,aiohttp.DummyCookieJar):
-                        raise ValueError('--> Trying to set cookie but cookiejar is dummy, enable --reuse_session for cruzer!')
+                    response = await session.request(req.method,mock_url or url.url,
+                                                     allow_redirects=allow_redirects,
+                                                     max_redirects=max_redirects,
+                                                     headers=headers,data=post_data)
 
-                    session.cookie_jar.update_cookies(req.cookies)
 
-                if req.post is not None:
-                    if req.multipart_post:
-                        post_data = _generate_form_data(multipart_post=req.multipart_post,**req.post)
+                    # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
+                    # XXX should use tracing events to get t_first_byte
+                    t_first_byte = '{:.3f}'.format(time.time() - t0)
+
+                    while left > 0:
+                        block = await response.content.read(left)
+                        if not block:
+                            body_bytes = b''.join(blocks)
+                            break
+                        blocks.append(block)
+                        left -= len(block)
                     else:
-                        post_data = req.post
-                else:
-                    post_data = None
-
-
-                response = await session.request(req.method,mock_url or url.url,
-                                         allow_redirects=allow_redirects,
-                                         max_redirects=max_redirects,
-                                         headers=headers,data=post_data)
-
-
-                # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
-                # XXX should use tracing events to get t_first_byte
-                t_first_byte = '{:.3f}'.format(time.time() - t0)
-
-                while left > 0:
-                    block = await response.content.read(left)
-                    if not block:
                         body_bytes = b''.join(blocks)
-                        break
-                    blocks.append(block)
-                    left -= len(block)
-                else:
-                    body_bytes = b''.join(blocks)
 
-                if not response.content.at_eof():
-                    stats.stats_sum('fetch truncated length', 1)
-                    response.close()  # this does interrupt the network transfer
-                    is_truncated = 'length'  # testme WARC
+                    if not response.content.at_eof():
+                        stats.stats_sum('fetch truncated length', 1)
+                        response.close()  # this does interrupt the network transfer
+                        is_truncated = 'length'  # testme WARC
 
-                t_last_byte = '{:.3f}'.format(time.time() - t0)
+                    t_last_byte = '{:.3f}'.format(time.time() - t0)
+
+
     except asyncio.TimeoutError as e:
         stats.stats_sum('fetch timeout', 1)
         last_exception = 'TimeoutError'
@@ -302,13 +309,15 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
     # did we receive cookies? was the security bit set?
 
     log_headers = None #pformat(dict(response.raw_headers),indent=10)
-    LOGGER.debug('<{0} [{1}] {2}   dns [3]: {4}> \n {5}'.format(req.method,
-                                                                resp.status,
-                                                            url.url,
-                                                            dns_log[0],
-                                                            dns_log[1],
-                                                            log_headers or ''
-                                                            ))
+    dns_line = None #'dns [{0}]: {1}'.format(dns_log[0],dns_log[1])
+
+    LOGGER.debug('<{0} [{1}] {2}  {3} > \n {4}'.format(
+                                                        req.method,
+                                                        resp.status,
+                                                        url.url,
+                                                        dns_line or '',
+                                                        log_headers or ''
+                                                        ))
 
     return fr
 

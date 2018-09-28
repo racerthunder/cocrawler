@@ -123,7 +123,7 @@ class CoCrawler_Caching_AsyncResolver(aiohttp.resolver.AsyncResolver):
                 ttl = a['ttl']  # all should be equal, we'll remember the last
 
         if len(addrs) != len(ret):
-            LOGGER.info('threw out some ip addresses for %s', host)
+            LOGGER.debug('threw out some ip addresses for %s', host)
         if len(ret) == 0:
             stats.stats_sum('DNS lookup no A records found', 1)
             raise ValueError('no A records found')
