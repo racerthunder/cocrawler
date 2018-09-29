@@ -6,8 +6,6 @@ from furl import furl
 def misc():
 
     req = Req('http://tut.by')
-    params = {'param1':'val1','p':'val2'}
-    req.get = 'ddd'
     print(req.url.url)
 
 

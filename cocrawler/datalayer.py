@@ -69,6 +69,7 @@ class Datalayer:
                 raise ValueError('--> CleanClosedSSL requires [enable_cleanup_closed] to be True for Connector')
 
             if len(self.seen_set) % self.cocrawler.cleanup_ssl_every == 0:
+                self.cocrawler.connector._cleanup()
                 transports = len(self.cocrawler.connector._cleanup_closed_transports)
                 self.cocrawler.connector._cleanup_closed()
                 LOGGER.info('--> SSL Cleaned up {0} ssl connections'.format(transports))

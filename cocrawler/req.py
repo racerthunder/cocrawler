@@ -71,11 +71,13 @@ class SessionData_Get(SessionData):
         if value is not None:
             self.validator.validate(value)
 
+            new_url = furl(instance.url.url)
+            new_url.args = value
+            instance.url = URL(new_url.url)
+
         self._data[instance] = value
 
-        new_url = furl(instance.url.url)
-        new_url.args = value
-        instance.url = URL(new_url.url)
+
 
 
 class Req():
