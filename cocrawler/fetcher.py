@@ -244,7 +244,8 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
 
         stats.stats_sum('fetch ClientError', 1)
         detailed_name = str(type(e).__name__)
-        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + ': dns [0]: {1}'.format(dns_log[0],dns_log[1])
+        dns_line = None #'dns [{0}]: {1}'.format(dns_log[0],dns_log[1])
+        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + '{0}'.format(dns_line or '')
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'disconnect'  # testme WARC

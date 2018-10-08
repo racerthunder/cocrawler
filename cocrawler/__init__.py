@@ -259,6 +259,7 @@ class Crawler:
             self.connector.close()
 
     def shutdown(self):
+        self.stopping = True
         stats.coroutine_report()
         self.cancel_workers()
     @property
@@ -659,6 +660,7 @@ class Crawler:
                     raise ValueError('--> {0} is not a Coroutine or Asyncgenerator, instead = {1}'.format(task_name,type(task_func)))
 
             except Exception as ex:
+                LOGGER.warning('--> [TASK GENERATOR ERROR, SEE TRACEBACK BELOW]')
                 traceback.print_exc()
 
 
@@ -1225,7 +1227,7 @@ class Crawler:
 
         config.config(args.configfile, args.config)
 
-        memory.limit_resources()
+        #memory.limit_resources()
 
         if os.getenv('PYTHONASYNCIODEBUG') is not None:
             logging.captureWarnings(True)
@@ -1252,7 +1254,7 @@ class Crawler:
 
         loop = cruzer.loop
 
-        #loop.set_debug(True)
+        #loop.set_debug(True) # https://docs.python.org/3/library/asyncio-dev.html#asyncio-debug-mode
 
         slow_callback_duration = os.getenv('ASYNCIO_SLOW_CALLBACK_DURATION')
         if slow_callback_duration:

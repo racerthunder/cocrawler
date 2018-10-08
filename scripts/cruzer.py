@@ -62,7 +62,6 @@ class Cruzer(cocrawler.Crawler):
 
             counter +=1
             #url = 'http://httpbin.org/get'
-
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url)
             domain = req.url.hostname_without_www
