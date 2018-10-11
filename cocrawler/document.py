@@ -327,8 +327,8 @@ class FormExtension(object):
 
 
         req = Req(url=action_url)
-        req.set_multipart(_multipart)
-        req.set_post(dict(post_items))
+        req.multipart_post= _multipart
+        req.post = dict(post_items)
 
         return req
 
@@ -442,23 +442,8 @@ class Document(FormExtension):
     #fetcher complete response object
     fetcher = property(_get_fetcher, _set_fetcher)
 
-def main():
-    from pathlib import Path
-    path = Path('/Volumes/crypt/_Coding/PYTHON/TEMP/buffer.html')
-    with path.open(encoding='utf-8') as f:
-        html = f.read()
-    from cocrawler.req import Req
 
-    req = Req('http://google.com')
-    doca = Document(html,req=req)
-
-
-    # for item in doca.select('//a'):
-    #     print(item.html())
-    doca.set_input('q','valuelva')
-    doca.submit()
-    #print(render_html(doca.form))
 
 if __name__ == '__main__':
-    main()
+    'see /test/cruzer/test_doc'
 

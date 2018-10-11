@@ -434,9 +434,8 @@ class Crawler:
 
         ridealong['priority'] = priority
         ridealong['retries_left'] = retries_left
-        self.scheduler.set_ridealong(surt, ridealong)
 
-        await self.scheduler.requeue_work((priority, rand, surt))
+        await self.add_url(priority,ridealong,rand=rand)
         return ridealong
 
     async def fetch_and_process(self, work):
@@ -567,7 +566,9 @@ class Crawler:
                 await self.make_callback(ridealong,fr_dummy)
 
             else:
+                __ridealong['from_redir']= True
                 self.add_deffered_task(0,__ridealong)
+
 
         else:
 
@@ -577,14 +578,12 @@ class Crawler:
 
                 html, charset_used = await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
 
-
+                ridealong['from_redir']= False
                 ridealong['task'].doc.html = html
 
             await self.make_callback(ridealong,f)
 
 
-
-        self.scheduler.del_ridealong(surt)
 
         LOGGER.debug('--> Size: [work queue]={0}, [ridealong]={1}, [deffered]={2}'.format(
                                                                     self.scheduler.qsize(),                                                                                      self.scheduler.ridealong_size(),                                                                                         self.deffered_queue.qsize()
@@ -668,42 +667,72 @@ class Crawler:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)
 
 
+    def deffered_work_done(self):
+
+        self.deffered_queue.task_done()
 
     async def work(self):
         '''
         Process queue items until we run out.
         '''
+        try:
+            while True:
 
-        #try:
-        while True:
+                work = await self.scheduler.get_work()
+                priority, rand, surt = work
+                ridealong = self.scheduler.get_ridealong(surt)
+                owner_before = ridealong['owner']
 
-            work = await self.scheduler.get_work()
+                try:
 
-            try:
+                    task = await self.fetch_and_process(work)
 
-                task = await self.fetch_and_process(work)
+                except concurrent.futures._base.CancelledError:  # seen with ^C
+                    pass
+                # ValueError('no A records found') should not be a mystery
+                except Exception as e:
+                    # this catches any buggy code that executes in the main thread
+                    LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
+                    traceback.print_exc()
+                    # falling through causes this work item to get marked done, and we continue
 
-            except concurrent.futures._base.CancelledError:  # seen with ^C
-                pass
-            # ValueError('no A records found') should not be a mystery
-            except Exception as e:
-                # this catches any buggy code that executes in the main thread
-                LOGGER.error('Something bad happened working on %s, it\'s a mystery:\n%s', work[2], e)
-                traceback.print_exc()
-                # falling through causes this work item to get marked done, and we continue
+                #we track task_done for deffered queue separatelly for correct join
 
-            self.scheduler.work_done()
+                self.scheduler.work_done()
+                # only here we can say confidentially that any task has been completed after
+                # fetch_and_process is done
 
-            if self.stopping:
-                raise asyncio.CancelledError
+                owner_after = ridealong['owner']
 
-            if self.paused:
-                with stats.coroutine_state('paused'):
-                    while self.paused:
-                        await asyncio.sleep(1)
+                #TODO: we need to move from surt as ridealong_id since after initial task submit we
+                # have changed ridealong that has no traces of a previous state, therefore we store
+                # the owner before and after
 
-        # except asyncio.CancelledError:
-        #     pass
+                is_deffered_owner = ((owner_before == owner_after) & (owner_after == 'deffered_queue'))
+
+                from_redir = ridealong.get('from_redir',False)
+
+                if is_deffered_owner and not from_redir:
+                    self.deffered_work_done()
+
+
+                self.scheduler.del_ridealong(surt)
+
+
+                if self.stopping:
+                    raise asyncio.CancelledError
+
+                if self.paused:
+                    with stats.coroutine_state('paused'):
+                        while self.paused:
+                            await asyncio.sleep(1)
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as ex:
+            traceback.print_exc()
+            raise ex
+
     def _calculate_percent_delta(self,num1, num2):
         percent = round((float(num1)/float(num2))*100)
         return percent
@@ -959,6 +988,10 @@ class Crawler:
     def add_deffered_task(self,priority, ridealong):
         #priority =  lower number = higher priority
         # add urls from redirects detection and from cruzer callback functions
+
+
+        ridealong['owner'] = 'deffered_queue'
+
         self.deffered_queue.put_nowait((priority,ridealong))
 
     def create_session(self,**kwargs):
@@ -991,12 +1024,14 @@ class Crawler:
         while True:
             result = None
             try:
+
                 priority, ridealong = self.deffered_queue.get_nowait()
 
                 result = await self.add_url(priority,ridealong)
-                LOGGER.debug('--> deffered task added, actual url: {0} , task domain: {1}'.format(
-                    ridealong['task'].req.url,
-                    ridealong['task'].req.url.hostname
+
+                LOGGER.debug('--> deffered task added, work queue:{0} url: {1}'.format(
+                    self.scheduler.qsize(),
+                    ridealong['task'].req.url
                 ))
 
 
@@ -1011,14 +1046,9 @@ class Crawler:
                 traceback.print_exc()
                 #break
 
-            if result is not None:
-                self.deffered_queue.task_done()
-
             if self.stopping:
 
                 raise asyncio.CancelledError
-
-
 
 
     async def queue_producer(self):
@@ -1045,6 +1075,7 @@ class Crawler:
 
             if task is not None:
                 ride_along = self.generate_ridealong(task)
+                ride_along['owner'] = 'main_queue'
 
                 await self.add_url(1,ride_along)
             else:
@@ -1130,39 +1161,45 @@ class Crawler:
                 if self.reuse_session:
                     await self.pool.close_or_wait()
 
-                if not self.deffered_queue.empty():
+                # if not self.deffered_queue.empty():
+                #
+                #     LOGGER.warning('--> main queue is about to join, but we still have things in deffered queue,'
+                #                    'size: {0}'.format(self.deffered_queue.qsize()))
+                #     LOGGER.warning('--> Workers stats: {0}'.format(str(self.get_workers_state())))
+                #
+                #
+                #     LOGGER.warning('--> Trying to manually fill queue from deffered')
+                #     while True:
+                #         try:
+                #
+                #             priority, ridealong = self.deffered_queue.get_nowait()
+                #
+                #             if getattr(self,'deffered_submited',None) is None:
+                #                 self.deffered_submited = 1
+                #
+                #             else:
+                #                 self.deffered_submited +=1
+                #
+                #
+                #             result = await self.add_url(priority,ridealong)
+                #             if result == 1:
+                #                 LOGGER.warning('--> Ok, manually added: {0}'
+                #                                .format(ridealong['task'].req.url.url))
+                #
+                #             else:
+                #                 LOGGER.warning('--> Bad, manually not added: {0}'
+                #                                .format(ridealong['task'].req.url.url))
+                #
+                #         except asyncio.queues.QueueEmpty:
+                #             break
+                #
+                #         except Exception as ex:
+                #             traceback.print_exc()
+                #
+                #         await asyncio.sleep(0.1)
 
-                    LOGGER.warning('--> main queue is about to join, but we still have things in deffered queue,'
-                                   'size: {0}'.format(self.deffered_queue.qsize()))
-                    LOGGER.warning('--> Workers stats: {0}'.format(str(self.get_workers_state())))
 
-
-                    LOGGER.warning('--> Trying to manually fill queue from deffered')
-                    while True:
-                        try:
-                            priority, ridealong = self.deffered_queue.get_nowait()
-
-                            result = await self.add_url(priority,ridealong)
-                            if result == 1:
-                                LOGGER.warning('--> Ok, manually added: {0}'
-                                               .format(ridealong['task'].req.url.url))
-
-                            else:
-                                LOGGER.warning('--> Bad, manually not added: {0}'
-                                               .format(ridealong['task'].req.url.url))
-
-                        except asyncio.queues.QueueEmpty:
-                            break
-
-                        except Exception as ex:
-                            traceback.print_exc()
-
-
-                        self.deffered_queue.task_done()
-                        await asyncio.sleep(0.1)
-
-
-                elif self.pool.busy == True:
+                if self.pool.busy == True:
 
                     LOGGER.warning('--> queue is about to join, but there are tasks in submited list, '
                                    '[ main queue: {0} , deffered queue: {1} , ridealong size: {2} ]'
@@ -1174,10 +1211,19 @@ class Crawler:
                     await asyncio.sleep(1)
 
                 else:
+
                     LOGGER.warning('all workers appear idle, queue appears empty, executing join')
 
-                    await self.scheduler.close()
+                    for w in self.workers:
+                        if w.done() and w.exception():
+                            text = '\n\n' + 50*'#' + '\n{0}\n' + 50*'#' + '\n\n'
+                            LOGGER.warning(text.format('Workers stopped by exception: {0}'
+                                                       .format(w.exception())))
+
+
                     await self.deffered_queue.join()
+                    LOGGER.warning('--> deffered queue joined succesfully, scheduler is next')
+                    await self.scheduler.close()
                     break
 
             self.update_cpu_stats()

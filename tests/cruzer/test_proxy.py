@@ -80,7 +80,7 @@ class Crawler():
         funct = getattr(self,'task_download')
         _t = get_new_task()
         _t.name = 'crawler_task'
-        _t.counter = 0 # 0 = make wrapper think this is the bad proxy
+        _t.counter = 1 # 0 = make wrapper think this is the bad proxy
 
 
         try:

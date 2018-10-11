@@ -92,6 +92,7 @@ class Scheduler:
 
             try:
                 work = self.q.get_nowait()
+
             except asyncio.queues.QueueEmpty:
                 # using awaiting_work to see if all workers are idle can race with sleeping s.q.get()
                 # putting it in an except clause makes sure the race is only run when
@@ -172,23 +173,16 @@ class Scheduler:
     def work_done(self):
         self.q.task_done()
 
-    async def requeue_work(self, work):
-        '''
-        When we requeue work after a failure, we add 0.5 to the rand;
-        eventually do that in here
-        '''
-        await self.q.put(work)
-
     async def queue_work(self, work):
         await self.q.put(work)
 
-    # async def queue_work_async(self, work):
-    #     await self.q.put(work)
 
     def qsize(self):
         return self.q.qsize()
 
     def set_ridealong(self, ridealongid, work):
+        if ridealongid in self.ridealong:
+            LOGGER.warning('--> Overriding ridealong, id: {0}'.format(ridealongid))
         self.ridealong[ridealongid] = work
 
     def get_ridealong(self, ridealongid):

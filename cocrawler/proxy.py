@@ -5,6 +5,7 @@ import inspect
 import traceback
 
 import asyncio
+from furl import furl
 
 from .urls import URL
 from . import Crawler
@@ -14,13 +15,20 @@ from _BIN.proxy import Proxy
 
 _logger = logging.getLogger(__name__)
 
-class ProxyToken():
+class ProxyChecker():
     '''
     receives str or list for token
     condition: any,all
+    apply_for_task: default='all', applies for all task in the workflow, or individually
+            ex. ['task_download',]
     '''
-    def __init__(self,token,*,condition=any):
+    def __init__(self,token,*, apply_for_task='all', condition=any):
+
         self.condition = condition
+
+        self.apply_for_task = apply_for_task
+        if self.apply_for_task != 'all' and not(isinstance(self.apply_for_task,list)):
+            raise ValueError('--> apply_for_task must be list instead = {0}'.format(self.apply_for_task))
 
         self.__token = token
 
@@ -33,13 +41,13 @@ class ProxyToken():
 
 
 
-def proxy_checker(proxy,proxy_token,logger=None):
+def proxy_checker_wrapp(proxy,proxy_token,logger=None):
     '''
     Since body of the function contains 'yield' outside work sees is as generator, therefore every place where
     other should see as job completed should yield StopIteration()
 
     :param proxy: Proxy isntance for rotating proxy
-    :param proxy_token: <str> token to find in thml response
+    :param proxy_token: <ProxyToken> token to find in thml response
     :param logger: <logging> instance of main crawler
     :return:
     '''
@@ -50,9 +58,14 @@ def proxy_checker(proxy,proxy_token,logger=None):
 
             if task.doc.html is None or not proxy_token.condition([token for token in proxy_token.tokens if token in task.doc.html]):
                 LOGGER.debug('--> Bad proxy for task: {0}'.format(task.name))
-                new_url = proxy.get_next_proxy_cycle(task.req.source_url)
+
+                source_url = furl(task.req.url.url).args['q']
+                new_proxy = proxy.get_next_proxy_cycle()
+                new_proxy_url = (furl(new_proxy).add({'q':source_url})).url
+
                 task_clone = task.clone_task()
-                task_clone.req.url = URL(new_url)
+                task_clone.req.url = URL(new_proxy_url)
+
                 yield task_clone
                 yield StopIteration()
 
@@ -84,6 +97,14 @@ def proxy_checker(proxy,proxy_token,logger=None):
 
     return proxy_inner
 
+class CollisionsList(list):
+    '''
+    do not allow to append duplicates
+    '''
+    def append(self, other):
+        if other in self:
+            raise ValueError('--> Value already added: {0}'.format(other))
+        super().append(other)
 
 class CruzerProxy(Crawler):
     '''
@@ -101,17 +122,32 @@ class CruzerProxy(Crawler):
         proxy = proxys[0]
 
         # ------> get proxy token <------ #
-        proxy_tokens = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyToken)]
-        if not len(proxy_tokens):
+        proxy_checkers = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyChecker)]
+        if not len(proxy_checkers):
             raise ValueError('--> Proxy token not defined! Add ProxyToken instance as class attribute')
-        proxy_token = proxy_tokens[0]
+
 
         # ------> decorate task_* <------#
         func_ls = [(name,val) for name,val in cruzer_vars.items() if name.startswith('task_')]
         if not len(func_ls):
             raise ValueError('--> Cruzer class mush have at least one "task_*" ')
 
+        proxy_covered_funcs = CollisionsList() # list of functions that proxy checkers is applied
         for name,class_func in func_ls:
-            setattr(self, name, MethodType(proxy_checker(proxy,proxy_token)(class_func), self))
+
+            for proxy_checker in proxy_checkers:
+                _method = MethodType(proxy_checker_wrapp(proxy,proxy_checker)(class_func), self)
+
+                if proxy_checker.apply_for_task == 'all':
+                    proxy_covered_funcs.append(name)
+                    setattr(self, name, _method)
+                else:
+                    for applied_task in proxy_checker.apply_for_task:
+                        if applied_task == name:
+                            proxy_covered_funcs.append(name)
+                            setattr(self, name, _method)
+
+
+
 
 
