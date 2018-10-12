@@ -100,7 +100,7 @@ class Req():
         self.get = get
         self.cookies = cookies
         self.multipart_post = multipart_post
-        self.headers = headers
+        self.headers = headers or {}
 
     @property
     def method(self):

@@ -683,11 +683,14 @@ class Crawler:
                 work = await self.scheduler.get_work()
                 priority, rand, surt = work
                 ridealong = self.scheduler.get_ridealong(surt)
-                owner_before = ridealong['owner']
+                owner_before = owner_after = None
 
                 try:
+                    owner_before = ridealong['owner']
 
                     task = await self.fetch_and_process(work)
+
+                    owner_after = ridealong['owner']
 
                 except concurrent.futures._base.CancelledError:  # seen with ^C
                     pass
@@ -704,15 +707,12 @@ class Crawler:
                 # only here we can say confidentially that any task has been completed after
                 # fetch_and_process is done
 
-                owner_after = ridealong['owner']
 
                 #TODO: we need to move from surt as ridealong_id since after initial task submit we
                 # have changed ridealong that has no traces of a previous state, therefore we store
                 # the owner before and after
 
                 is_deffered_owner = ((owner_before == owner_after) & (owner_after == 'deffered_queue'))
-
-                from_redir = ridealong.get('from_redir',False)
 
                 if is_deffered_owner:
                     stats.stats_sum('deffered_done',1)

@@ -182,14 +182,17 @@ class Scheduler:
 
     def set_ridealong(self, ridealongid, work):
         if ridealongid in self.ridealong:
-            LOGGER.warning('--> Overriding ridealong, id: {0}'.format(ridealongid))
+            LOGGER.warning('--> Overriding ridealong, before: {0}, after: {1}'.format(
+                                                    self.ridealong[ridealongid]['task'].req.url.url,
+                                                    work.req.url.url
+                                                    ))
         self.ridealong[ridealongid] = work
 
     def get_ridealong(self, ridealongid):
         if ridealongid in self.ridealong:
             return self.ridealong[ridealongid]
         else:
-            LOGGER.debug('ridealong data for surt %s not found', ridealongid)
+            LOGGER.warning('ridealong data for surt %s not found', ridealongid)
             return {}
 
     def del_ridealong(self, ridealongid):
