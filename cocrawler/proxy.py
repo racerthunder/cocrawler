@@ -15,7 +15,13 @@ from _BIN.proxy import Proxy
 
 _logger = logging.getLogger(__name__)
 
-class ProxyChecker():
+class ProxyCheckerError(Exception):pass
+
+
+class ProxyCheckerBase():pass
+
+
+class ProxyCheckerHTML(ProxyCheckerBase):
     '''
     receives str or list for token
     condition: any,all
@@ -32,22 +38,30 @@ class ProxyChecker():
 
         self.__token = token
 
-        if isinstance(self.__token,str):
+        if isinstance(self.__token, str):
             self.tokens = [self.__token,]
         else:
             self.tokens = list(self.__token)
 
+    def validate(self,html):
+
+        if html is None:
+            return False
+
+        is_valid = self.condition([token for token in self.tokens if token in html])
+        return is_valid
 
 
 
 
-def proxy_checker_wrapp(proxy,proxy_token,logger=None):
+
+def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
     '''
-    Since body of the function contains 'yield' outside work sees is as generator, therefore every place where
-    other should see as job completed should yield StopIteration()
+    Since body of the function contains 'yield' outside world sees is as generator,
+    therefore every place where other should see as job completed must yield StopIteration()
 
     :param proxy: Proxy isntance for rotating proxy
-    :param proxy_token: <ProxyToken> token to find in thml response
+    :param proxy_checker: <ProxyChecker> token to find in thml response
     :param logger: <logging> instance of main crawler
     :return:
     '''
@@ -56,7 +70,8 @@ def proxy_checker_wrapp(proxy,proxy_token,logger=None):
         async def _impl(self,task):
             LOGGER = logger or _logger
 
-            if task.doc.html is None or not proxy_token.condition([token for token in proxy_token.tokens if token in task.doc.html]):
+            if not proxy_checker.validate(task.doc.html):
+
                 LOGGER.debug('--> Bad proxy for task: {0}'.format(task.name))
 
                 source_url = furl(task.req.url.url).args['q']
@@ -122,13 +137,15 @@ class CruzerProxy(Crawler):
         proxy = proxys[0]
 
         # ------> get proxy token <------ #
-        proxy_checkers = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyChecker)]
+        proxy_checkers = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyCheckerBase)]
         if not len(proxy_checkers):
             raise ValueError('--> Proxy token not defined! Add ProxyToken instance as class attribute')
 
 
         # ------> decorate task_* <------#
-        func_ls = [(name,val) for name,val in cruzer_vars.items() if name.startswith('task_')]
+        func_ls = [(name,val) for name,val in cruzer_vars.items() if name.startswith('task_') and not
+                   name=='task_generator']
+
         if not len(func_ls):
             raise ValueError('--> Cruzer class mush have at least one "task_*" ')
 
@@ -147,6 +164,11 @@ class CruzerProxy(Crawler):
                             proxy_covered_funcs.append(name)
                             setattr(self, name, _method)
 
+
+        diff = set([x[0] for x in func_ls]).difference(set(proxy_covered_funcs))
+
+        if len(diff) > 0:
+            raise ProxyCheckerError('--> Not all tasks are covered with checkers: {0}'.format(str(diff)))
 
 
 

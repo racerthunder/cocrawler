@@ -73,7 +73,7 @@ class Cruzer(cocrawler.Crawler):
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
             #time.sleep(5)
-            if counter > 0:
+            if counter > 10:
                 break
 
     async def task_download(self,task):
