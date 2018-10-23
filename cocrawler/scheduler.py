@@ -113,17 +113,17 @@ class Scheduler:
             surt_host, _, _ = surt.partition(')')
             ridealong = self.get_ridealong(surt)
 
-            recycle, why, dt = self.schedule_work(now, surt, surt_host, ridealong)
-
-            if recycle:
-                # sleep then requeue
-                stats.stats_sum(why+' sum', dt)
-                with stats.coroutine_state(why):
-                    LOGGER.info('--> scheduler is recycling and sleeping for {0}'.format(dt))
-                    await asyncio.sleep(dt)
-                    await self.q.put(work)
-                    self.q.task_done()
-                    continue
+            # recycle, why, dt = self.schedule_work(now, surt, surt_host, ridealong)
+            #
+            # if recycle:
+            #     # sleep then requeue
+            #     stats.stats_sum(why+' sum', dt)
+            #     with stats.coroutine_state(why):
+            #         LOGGER.info('--> scheduler is recycling and sleeping for {0}'.format(dt))
+            #         await asyncio.sleep(dt)
+            #         await self.q.put(work)
+            #         self.q.task_done()
+            #         continue
 
             # Normal case: sleep if needed, and then return the work to the caller.
             # if dt > 0:

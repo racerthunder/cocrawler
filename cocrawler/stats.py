@@ -26,6 +26,7 @@ burners = {}
 latencies = {}
 coroutine_states = {}
 exitstatus = 0
+report_messages = [] # warning messages that should appear at the bottom when exit
 
 
 def stats_max(name, value):
@@ -193,6 +194,9 @@ def report():
         #LOGGER.info('  Crawl rate is %.2f gigabits/s', sums['fetch bytes']/elapsed*8/1000000000.)
         LOGGER.info('  Crawl rate is %.2f mb/s', sums['fetch bytes']/elapsed*8/100000.)
 
+    if len(report_messages):
+        for message in report_messages:
+            LOGGER.warning(message)
 
 def coroutine_report():
     LOGGER.info('Coroutine state:')

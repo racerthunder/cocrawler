@@ -80,7 +80,7 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            #print(task.doc.html)
+            print(task.host_ip)
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
             pass

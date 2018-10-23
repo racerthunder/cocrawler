@@ -259,10 +259,14 @@ class Crawler:
         if hasattr(self, 'connector'):
             self.connector.close()
 
-    def shutdown(self):
+    def shutdown(self, message=None):
+        if message is not None:
+            stats.report_messages.append(message)
+
         self.stopping = True
         stats.coroutine_report()
         self.cancel_workers()
+
 
     @property
     def proxy_mode(self):
@@ -528,9 +532,9 @@ class Crawler:
 
 
         # f = NamedTuple
-        f = await fetcher.fetch(url, _session, req=ridealong['task'].req, max_page_size=self.max_page_size,
-                                    headers=req_headers, proxy=proxy, mock_url=mock_url,dns_entry=entry)
-
+        f = await fetcher.fetch(url, _session, req=ridealong['task'].req,
+                                max_page_size=self.max_page_size,headers=req_headers,
+                                proxy=proxy, mock_url=mock_url,dns_entry=entry)
 
 
         json_log = {'kind': ridealong['task'].req.method, 'url': url.url, 'priority': priority,
@@ -630,6 +634,14 @@ class Crawler:
         task.doc.fetcher = fr
         task.doc.status = fr.response.status if fr.response else fr.last_exception
         task.last_url = str(fr.response.url) if fr.response else None
+        ip_data = self.resolver.get_cache_entry(task.req.url.hostname)
+
+        if ip_data and len(ip_data):
+            try:
+                ip = ip_data[0][0].get('host',None)
+                task.host_ip = ip
+            except Exception as ex:
+                traceback.print_exc()
 
         return task
 
@@ -1086,10 +1098,10 @@ class Crawler:
             task = None
 
             while True:
-                # sleep untill deffered queue is empty again
+                # sleep until deffered queue is empty again
                 if not self.deffered_queue.empty():
                     LOGGER.debug('--> Queue producer is sleeping.')
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.5)
                 else:
                     break
 

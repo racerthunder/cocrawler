@@ -9,6 +9,7 @@ class Task():
     def __init__(self,name,req,**kwargs):
         self.req = req
         self.last_url = None # store final address of the request
+        self.host_ip = None # store first ip address of the list of resolved
         self.name = name
         self.doc = Document(url=self.req.url.url)
         self.session_id = None # used with reuse_session==True
