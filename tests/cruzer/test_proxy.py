@@ -4,7 +4,10 @@ from collections import namedtuple
 import traceback
 import inspect
 from _BIN.proxy import Proxy
-
+from cocrawler.task import Task
+from cocrawler.req import Req
+from cocrawler.document import Document
+import operator
 
 def task_generator_wrapper(method):
 
@@ -138,5 +141,88 @@ def main():
 
     cruzer.run()
 
+
+
+def test_checker():
+
+    from cocrawler.proxy import ProxyChecker
+    import operator
+    import inspect
+
+
+    class Mock():
+        left = []
+        right = None
+        OP = None
+
+        def __getattr__(self, item):
+            print('--> [mock] : {0}'.format(item))
+            self.__class__.left.append(item)
+            return self
+
+        def __eq__(self, other):
+            print('--> [mock eq]: {0}'.format(other))
+            self.__class__.OP = operator.eq
+            self.__class__.right = other
+            return False
+
+        def __ne__(self, other):
+            print('--> [mock not eq]: {0}'.format(other))
+            self.__class__.OP = operator.ne
+            self.__class__.right = other
+            return False
+
+        def __contains__(self, __token):
+            print('--> [mock _contains]: {0}'.format(__token))
+            self.__class__.OP = operator.contains
+
+            if isinstance(__token, str):
+                self.__class__.right = [__token,]
+            else:
+                self.__class__.right = list(__token)
+
+            return False
+
+
+    class TaskProxy():
+
+        _cls_mock = Mock
+
+        def __init__(self):
+            self._cls_mock.left = []
+            self._cls_mock.right = None
+            self._cls_mock.OP = None
+
+        def __getattr__(self, item):
+            self._cls_mock.left.append(item)
+            print('--> getattr: {0}'.format(item))
+            return self._cls_mock()
+
+
+        def get_cmd(self):
+            return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP)
+
+
+    req1 = Req('http://google.com')
+    t1 = Task(name='t1',req=req1)
+    t1.doc.html = 'find me token'
+    t1.doc.status = 200
+
+    #
+    # tproxy = TaskProxy()
+    # res = (['token','mee'] < tproxy.doc.html)
+    #
+    # checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
+
+
+    tproxy2 = TaskProxy()
+    res = (tproxy2.doc.status != 403)
+
+    checker = ProxyChecker(*tproxy2.get_cmd(), condition=any)
+
+    print(checker.validate(t1))
+
 if __name__ == '__main__':
-    main()
+    #main()
+    test_checker()
+

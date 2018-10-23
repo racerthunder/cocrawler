@@ -3,6 +3,8 @@ from types import MethodType
 import logging
 import inspect
 import traceback
+import operator
+import sys
 
 import asyncio
 from furl import furl
@@ -21,37 +23,83 @@ class ProxyCheckerError(Exception):pass
 class ProxyCheckerBase():pass
 
 
-class ProxyCheckerHTML(ProxyCheckerBase):
+class Mock():
     '''
-    receives str or list for token
-    condition: any,all
-    apply_for_task: default='all', applies for all task in the workflow, or individually
-            ex. ['task_download',]
+    Mock's purpose is to record every attribute call to make a call chain
     '''
-    def __init__(self,token,*, apply_for_task='all', condition=any):
+    left = []
+    right = None
+    OP = None
+
+    def __getattr__(self, item):
+        # return self here to make arbitary long enclosed attributes
+        self.__class__.left.append(item)
+        return self
+
+    def __eq__(self, other):
+        self.__class__.OP = operator.eq
+        self.__class__.right = other
+        return False
+
+    def __ne__(self, other):
+        self.__class__.OP = operator.ne
+        self.__class__.right = other
+        return False
+
+    def __contains__(self, __token):
+
+        self.__class__.OP = operator.contains
+
+        if isinstance(__token, str):
+            self.__class__.right = [__token,]
+        else:
+            self.__class__.right = list(__token)
+
+        return False
+
+class TaskProxy():
+
+    _cls_mock = Mock
+
+    def __init__(self):
+        self._cls_mock.left = []
+        self._cls_mock.right = None
+        self._cls_mock.OP = None
+
+    def __getattr__(self, item):
+        self._cls_mock.left.append(item)
+        return self._cls_mock()
+
+    def get_cmd(self):
+        return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP)
+
+
+class ProxyChecker(ProxyCheckerBase):
+    def __init__(self, left, right, OP, *, apply_for_task='all', condition=any):
+
+        self.left = left
+        self.right = right
+        self.operator = OP
 
         self.condition = condition
-
         self.apply_for_task = apply_for_task
-        if self.apply_for_task != 'all' and not(isinstance(self.apply_for_task,list)):
-            raise ValueError('--> apply_for_task must be list instead = {0}'.format(self.apply_for_task))
 
-        self.__token = token
 
-        if isinstance(self.__token, str):
-            self.tokens = [self.__token,]
+    def validate(self, task):
+
+        _task = task.doc.status
+        for atr in self.left:
+            # rewrite task object with every iteration
+            task = getattr(task, atr, None)
+
+        if self.operator == operator.contains:
+            # here self.right is a list of tokens (at least one exists)
+            is_valid = self.condition([True if token in task else False for token in self.right])
+            return is_valid
+
         else:
-            self.tokens = list(self.__token)
 
-    def validate(self,html):
-
-        if html is None:
-            return False
-
-        is_valid = self.condition([token for token in self.tokens if token in html])
-        return is_valid
-
-
+            return self.operator(task, self.right)
 
 
 
@@ -61,7 +109,7 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
     therefore every place where other should see as job completed must yield StopIteration()
 
     :param proxy: Proxy isntance for rotating proxy
-    :param proxy_checker: <ProxyChecker> token to find in thml response
+    :param proxy_checker: <ProxyChecker> class for validating task_proxy agains real task
     :param logger: <logging> instance of main crawler
     :return:
     '''
@@ -70,9 +118,12 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
         async def _impl(self,task):
             LOGGER = logger or _logger
 
-            if not proxy_checker.validate(task.doc.html):
+            if not proxy_checker.validate(task):
 
-                LOGGER.debug('--> Bad proxy for task: {0}'.format(task.name))
+                LOGGER.debug('--> Bad proxy for task: {0}, {1}'.format(task.name, task.req.url.url))
+
+                proxy_bad = furl(task.req.url.url).remove(args=True,fragment_args=True).url
+                proxy.mark_bad(proxy_bad)
 
                 source_url = furl(task.req.url.url).args['q']
                 new_proxy = proxy.get_next_proxy_cycle()
@@ -153,6 +204,7 @@ class CruzerProxy(Crawler):
         for name,class_func in func_ls:
 
             for proxy_checker in proxy_checkers:
+
                 _method = MethodType(proxy_checker_wrapp(proxy,proxy_checker)(class_func), self)
 
                 if proxy_checker.apply_for_task == 'all':

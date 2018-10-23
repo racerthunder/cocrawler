@@ -1,71 +1,36 @@
 import asyncio
 
 
+main_queue = asyncio.Queue(maxsize=1)
 deffered_queue = asyncio.Queue()
 
+async def deffered_processor():
+    while True:
+        await main_queue.put('--deffered_item')
+        print('--> deffered item added')
 
+async def queue_producer():
 
-async def worker():
-
-    for i in range(5):
-        deffered_queue.put_nowait('item_{0}'.format(i))
 
     while True:
-        item = None
-        try:
-            raise ValueError('-->')
-            #item = deffered_queue.get_nowait()
-
-        except asyncio.queues.QueueEmpty:
-            print('empty')
-            await asyncio.sleep(1)
-
-        except Exception as ex:
-            print('--> catching all exceptions')
-            await  asyncio.sleep(1)
-
-        print('item: ',item)
-        if item is not None:
-            print('--> THE END')
-        #break
-
-async def other():
-    print('--> otehr is called')
-    await asyncio.sleep(1)
-
-async def main():
-    deffered = asyncio.Task(worker())
-    others = [asyncio.Task(other()) for _ in range(2)]
-
-    if deffered.done():
-        print('--> canceling otehr')
-        for task in others:
-            task.cancel()
-
-
-async def test_queue():
-    deffered_queue = asyncio.Queue()
-
-    deffered_queue.put_nowait('item')
-
-    await asyncio.sleep(1)
-    while True:
+        await asyncio.sleep(1)
         try:
 
             ridealong = deffered_queue.get_nowait()
 
             print(ridealong)
-            raise ValueError('--')
 
         except asyncio.queues.QueueEmpty:
-            print('-> break recived')
+            print('--> main queue is empty')
             break
 
-        except Exception as ex:
-            print('--> errr')
+
+def main():
+    producer = asyncio.Task(queue_producer())
+    deffered = asyncio.Task(deffered_processor())
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(test_queue())
+    loop.run_until_complete(main())
 

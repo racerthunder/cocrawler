@@ -61,6 +61,7 @@ from . sessions import SessionPool
 from . dns_warmup import Warmupper
 
 
+
 LOGGER = logging.getLogger(__name__)
 __title__ = 'cocrawler'
 __author__ = 'Greg Lindahl and others'
@@ -262,6 +263,15 @@ class Crawler:
         self.stopping = True
         stats.coroutine_report()
         self.cancel_workers()
+
+    @property
+    def proxy_mode(self):
+        from . proxy import CruzerProxy
+        if isinstance(self,CruzerProxy):
+            return True
+        else:
+            return False
+
     @property
     def seeds(self):
         return self._seeds
@@ -353,10 +363,6 @@ class Crawler:
         # could be used to sub-prioritize embeds
         if rand is None:
             rand = random.uniform(0, 0.99999)
-
-        #self.scheduler.set_ridealong(url.surt, ridealong)
-        #await self.scheduler.queue_work((priority, rand, url.surt))
-
 
         self.scheduler.set_ridealong(ridealong['task'].req.url.surt, ridealong)
         await self.scheduler.queue_work((priority, rand, ridealong['task'].req.url.surt))
@@ -660,6 +666,9 @@ class Crawler:
                 else:
                     raise ValueError('--> {0} is not a Coroutine or Asyncgenerator, instead = {1}'.format(task_name,type(task_func)))
 
+            except asyncio.CancelledError:
+                pass
+
             except Exception as ex:
                 LOGGER.warning('--> [TASK GENERATOR ERROR, SEE TRACEBACK BELOW]')
                 traceback.print_exc()
@@ -686,6 +695,9 @@ class Crawler:
                 owner_before = owner_after = None
 
                 try:
+                    if 'owner' not in ridealong.keys():
+                        LOGGER.warning('--> No owner found in ridealong: {0}'.format(ridealong))
+
                     owner_before = ridealong['owner']
 
                     task = await self.fetch_and_process(work)
@@ -1035,9 +1047,10 @@ class Crawler:
 
                     result = await self.add_url(priority,ridealong)
 
-                    LOGGER.debug('--> deffered task added, work queue:{0} url: {1}'.format(
+                    LOGGER.debug('--> deffered task added, work queue:{0} url [{2}]: {1}'.format(
                         self.scheduler.qsize(),
-                        ridealong['task'].req.url
+                        ridealong['task'].req.url,
+                        ridealong['task'].req.method
                     ))
 
 
@@ -1072,11 +1085,19 @@ class Crawler:
             # do not try to get items from this queue here since it could be racy with main coroutine
             task = None
 
-            if not self.deffered_queue.empty():
-                await asyncio.sleep(0.1)
+            while True:
+                # sleep untill deffered queue is empty again
+                if not self.deffered_queue.empty():
+                    LOGGER.debug('--> Queue producer is sleeping.')
+                    await asyncio.sleep(0.1)
+                else:
+                    break
+
             try:
                 task = next(self.init_generator)
-                LOGGER.debug('--> new task submited: "{0}" for {1}'.format(task.name,task.req.url.url))
+                LOGGER.debug('--> new task submited [{2}]: "{0}" for {1}'.format(task.name,
+                                                                               task.req.url.url,
+                                                                               task.req.method))
             except StopIteration:
                 LOGGER.debug('--> cruzer iter is empty')
                 break

@@ -11,7 +11,7 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 
-
+import peewee
 
 from _BIN.proxy import Proxy
 from _DB.schemes.secondhand import diff_2018_feb_mar_apr,database
@@ -67,11 +67,16 @@ class Cruzer(cocrawler.Crawler):
 
     async def task_download(self,task):
 
+        try:
+            selector = await self.datalayer.peewee.get(diff_2018_feb_mar_apr,diff_2018_feb_mar_apr.id==700002344534)
+            print('sleeeet: ',selector)
 
-        # selector = await self.datalayer.peewee.get(diff_2018_feb_mar_apr,diff_2018_feb_mar_apr.id==70000)
-        #
-        # print(vars(selector))
+        except peewee.DoesNotExist:
+            print('--> not recrods found')
 
+
+        # selector = await self.datalayer.peewee.execute(diff_2018_feb_mar_apr.select().where(diff_2018_feb_mar_apr.domain=='esnips.com'))
+        # print('counnttt: ',selector)
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))

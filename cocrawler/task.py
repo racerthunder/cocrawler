@@ -11,8 +11,8 @@ class Task():
         self.last_url = None # store final address of the request
         self.name = name
         self.doc = Document(url=self.req.url.url)
-        self.session_id=None # used with reuse_session==True
-        self.cruzer=None # cruzer instance to get access to sessions pool
+        self.session_id = None # used with reuse_session==True
+        self.cruzer = None # cruzer instance to get access to sessions pool
         self.flow = [] # names of the tasks that was executed before current one, if list is empty
                         # this task is considered to be a root which holds the first ref to session
 

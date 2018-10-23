@@ -126,11 +126,11 @@ class Scheduler:
                     continue
 
             # Normal case: sleep if needed, and then return the work to the caller.
-            if dt > 0:
-                stats.stats_sum(why+' sum', dt)
-                with stats.coroutine_state(why):
-                    LOGGER.info('--> scheduler is sleeping for {0}'.format(dt))
-                    await asyncio.sleep(dt)
+            # if dt > 0:
+            #     stats.stats_sum(why+' sum', dt)
+            #     with stats.coroutine_state(why):
+            #         LOGGER.info('--> scheduler is sleeping for {0}'.format(dt))
+            #         await asyncio.sleep(dt)
 
             return work
 
@@ -182,9 +182,14 @@ class Scheduler:
 
     def set_ridealong(self, ridealongid, work):
         if ridealongid in self.ridealong:
-            LOGGER.warning('--> Overriding ridealong, before: {0}, after: {1}'.format(
+            LOGGER.warning('--> Overriding ridealong, url before: {0},'
+                           ' url after: {1},'
+                           ' ride_before: {2},'
+                           ' ride_after: {3}'.format(
                                                     self.ridealong[ridealongid]['task'].req.url.url,
-                                                    work.req.url.url
+                                                    work['task'].req.url.url,
+                                                    self.ridealong[ridealongid],
+                                                    work
                                                     ))
         self.ridealong[ridealongid] = work
 

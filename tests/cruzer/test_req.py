@@ -7,6 +7,7 @@ from furl import furl
 
 def test_furl():
     url = 'http://virtuosclub.com/wp-content/plugins/tinymce-advanced/mce/advlist/proxy.php?q=aHR0cHM6Ly9teWlwLm1zL2luZm8vc2VhcmNoLzEvc3R4dC9sZW1vbmNheWVubmVwZXBwZXJkaWV0LmNvbS9rLzUyMTgwMDc0Mi9sZW1vbmNheWVubmVwZXBwZXJkaWV0X2NvbS5odG1s'
+
     new_proxy = 'http://google.com/proxy.php'
     req = Req(url)
     source_url = furl(url).args['q']
@@ -32,6 +33,6 @@ def misc():
 
 if __name__ == '__main__':
     #main()
-    #test_furl()
-    misc()
+    test_furl()
+    #misc()
 
