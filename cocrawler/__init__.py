@@ -568,11 +568,11 @@ class Crawler:
 
         if post_fetch.is_redirect(f.response):
             __ridealong = await post_fetch.handle_redirect(f, url, ridealong, priority, host_geoip, json_log, self, rand=rand)
-            # meta-http-equiv-redirect will be dealt with in post_fetch
-            if __ridealong and __ridealong == 'no_valid_redir':
+            # ridealong should be dict otherwise its an error
+            if not isinstance(__ridealong, dict):
                 fr_dummy = namedtuple('fr_dummy','response last_exception')
                 fr_dummy.response = None # required here
-                fr_dummy.last_exception = 'no_valid_redir'
+                fr_dummy.last_exception = __ridealong
                 await self.make_callback(ridealong,fr_dummy)
 
             else:
@@ -637,12 +637,9 @@ class Crawler:
         ip_data = self.resolver.get_cache_entry(task.req.url.hostname)
 
         if ip_data and len(ip_data):
-            try:
-                ip = ip_data[0][0].get('host',None)
-                task.host_ip = ip
-            except Exception as ex:
-                traceback.print_exc()
-
+            ip = ip_data[0][0].get('host',None)
+            task.host_ip = ip
+            
         return task
 
     async def load_task_function(self,ridealong,fr):
@@ -1005,8 +1002,9 @@ class Crawler:
         task.cruzer = self
 
         max_tries = config.read('Crawl', 'MaxTries')
+        max_redirs = config.read('Crawl', 'MaxRedirs')
 
-        ride_along = {'task':task,'skip_seen_url':True,'retries_left': max_tries}
+        ride_along = {'task':task,'skip_seen_url':True,'retries_left': max_tries, 'redirs_left':max_redirs}
         return ride_along
 
     def task_generator(self):

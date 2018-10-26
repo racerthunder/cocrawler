@@ -168,9 +168,6 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
             del ridealong['freeredirs']
     ridealong['priority'] = priority
 
-
-
-
     json_log['redirect'] = next_url.url
     json_log['location'] = location
     if redir_kind is not None:
@@ -180,12 +177,19 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
     else:
         json_log['found_new_links'] = 0
 
+    default_error = 'no_valid_redir'
+
+    if 'redirs_left' in ridealong:
+        ridealong['redirs_left'] -= 1
+        if ridealong['redirs_left'] == 0:
+            queue_next = False
+            default_error = 'max_redirs_reached'
+
     # after we return, json_log will get logged
     if queue_next:
         return ridealong
-        #await crawler.add_url_async(priority, ridealong)
     else:
-        return 'no_valid_redir'
+        return default_error
 
 async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
 

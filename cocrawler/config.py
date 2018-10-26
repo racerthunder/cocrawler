@@ -37,6 +37,7 @@ REST: {}
 Crawl:
   CPUControl: False  # adjust max_workers based on cpu usage
   AllowExternalRedir: True  # should we follow redir to diff domain than the source
+  MaxRedirs: 10 # max number of redirects for single url, to avoid robot traps
   DnsTimeout: 5
   MaxDepth: 3
   MaxTries: 0

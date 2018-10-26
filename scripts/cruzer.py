@@ -15,7 +15,7 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.urls import URL
-#from cocrawler.proxy import CruzerProxy,ProxyToken
+#from cocrawler.proxy import CruzerProxy, TaskProxy, ProxyChecker
 
 
 
@@ -46,10 +46,25 @@ def dispatcher():
         #break
 
 
-#from _BIN.proxy import Proxy
+# from _BIN.proxy import Proxy
 # class Cruzer(CruzerProxy):
 #     proxy = Proxy()
-#     PROXY_TOKEN = ProxyToken(['data2','User-Agent'],condition=any)
+#
+#     proxy_task_html = TaskProxy() # do not use task_proxy for name
+#     validation_html = (proxy_task_html.doc.status == 500)
+#
+#     checker_html = ProxyChecker(*proxy_task_html.get_cmd(),
+#                                 condition=any,
+#                                 apply_for_task=['task_post']
+#                                 )
+#
+#     proxy_task_status = TaskProxy() # do not use task_proxy for name
+#     validation_status = (proxy_task_status.doc.status == 200)
+#
+#     checker_status = ProxyChecker(*proxy_task_status.get_cmd(),
+#                                   condition=any,
+#                                   apply_for_task=['task_last']
+#                                   )
 
 class Cruzer(cocrawler.Crawler):
 
@@ -66,14 +81,14 @@ class Cruzer(cocrawler.Crawler):
             req = Req(url)
             domain = req.url.hostname_without_www
 
-            cookie = {'data':domain,'data2':'val2'}
+            #cookie = {'data':domain,'data2':'val2'}
             #req.get = cookie
 
 
             yield Task(name='download',req=req,counter=counter,domain=domain)
 
             #time.sleep(5)
-            if counter > 10:
+            if counter > 0:
                 break
 
     async def task_download(self,task):
