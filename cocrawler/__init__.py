@@ -15,6 +15,7 @@ import functools
 import argparse
 from collections import namedtuple
 import inspect
+import uuid
 
 import sys
 import resource
@@ -368,8 +369,9 @@ class Crawler:
         if rand is None:
             rand = random.uniform(0, 0.99999)
 
-        self.scheduler.set_ridealong(ridealong['task'].req.url.surt, ridealong)
-        await self.scheduler.queue_work((priority, rand, ridealong['task'].req.url.surt))
+        work_id = str(uuid.uuid4())
+        self.scheduler.set_ridealong(work_id, ridealong)
+        await self.scheduler.queue_work((priority, rand, work_id))
 
         self.datalayer.add_seen(url)
         return 1

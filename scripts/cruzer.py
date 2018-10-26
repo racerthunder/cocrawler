@@ -85,7 +85,7 @@ class Cruzer(cocrawler.Crawler):
             #req.get = cookie
 
 
-            yield Task(name='download',req=req,counter=counter,domain=domain)
+            yield Task(name='download',req=req,domain=domain)
 
             #time.sleep(5)
             if counter > 0:
@@ -94,6 +94,12 @@ class Cruzer(cocrawler.Crawler):
     async def task_download(self,task):
 
         if task.doc.status  == 200:
+            for i in range(10):
+                url = 'http://{0}'.format('tut.by')
+                req = Req(url)
+                domain = req.url.hostname_without_www
+                yield Task(name='second',req=req, domain=domain)
+
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
             print(task.host_ip)
         else:
@@ -101,7 +107,6 @@ class Cruzer(cocrawler.Crawler):
             pass
 
     async def task_second(self,task):
-        print('---herere')
         if task.doc.status  == 200:
             print('good222: {0} , last_url: {1}'.format(task.req.url.hostname,task.last_url))
         else:
