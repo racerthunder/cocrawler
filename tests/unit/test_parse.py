@@ -19,6 +19,9 @@ anchor</a>
 </body>
 '''
 
+with open('/Volumes/crypt/_Coding/PYTHON/SECONDHAND/workflow/MAIN/17/archive/thevotersofaz.com/index.html', encoding='utf-8') as f:
+    test_html = f.read()
+
 test_html_no_body = '''
 <html>
 <head><title>Foo</title><link href='link.html'></link></head>
@@ -51,6 +54,17 @@ href=foo2.htm>Anchor 11</a>
 <img src=foo.gif />
 '''
 
+def test_full_site():
+    urlj = URL('http://example.com')
+    test_html_bytes = test_html.encode(encoding='utf-8', errors='replace')
+    headers = {}
+    links, embeds, sha1, facets, base = parse.do_burner_work_html(test_html, test_html_bytes, headers, url=urlj)
+    linkset = set(u.url for u in links)
+    embedset = set(u.url for u in embeds)
+    print('linkset:', linkset)
+    print('embedset:', embedset)
+
+
 
 def test_do_burner_work_html():
     urlj = URL('http://example.com')
@@ -61,6 +75,8 @@ def test_do_burner_work_html():
     assert len(embeds) == 2
     linkset = set(u.url for u in links)
     embedset = set(u.url for u in embeds)
+    print('linkset:', linkset)
+    print('embedset:', embedset)
     assert 'http://example.com/foo3.html' in linkset
     assert 'http://example.com/foo.gif' in embedset
     assert sha1 == 'sha1:cdcb087d39afd827d5d523e165a6566d65a2e9b3'
@@ -194,3 +210,7 @@ def test_regex_out_some_scripts():
 def test_regex_out_all_script():
     t = '<script>foo</script> bar <script type="baz">barf</script> '
     assert parse.regex_out_all_scripts(t) == ' bar  '
+
+
+if __name__ == '__main__':
+    test_full_site()

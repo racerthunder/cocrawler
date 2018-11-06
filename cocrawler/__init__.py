@@ -464,7 +464,6 @@ class Crawler:
         if 'task' not in ridealong:
             #TODO: it must be the thing when multiple workers get redirect to the same location,
             # the first one deletes surt and the others cant find it
-            # TODO: move from surt as the main param to find taks (generate something more unique)
             #raise ValueError('missing ridealong for surt '+surt)
             return None
 
@@ -590,10 +589,26 @@ class Crawler:
 
             if f.response.status == 200:
 
-                html, charset_used = await post_fetch.post_200(f, url, priority, host_geoip, seed_host, json_log, self)
+                if ridealong['task'].run_burner:
+                    html, content_data, burner_result = await post_fetch.post_200(f, url, priority,
+                                                                                  host_geoip,seed_host, json_log,
+                                                                                  self, run_bunner=True)
+                    if burner_result:
+                        links, embeds, sha1, facets, base = burner_result
+
+                        linkset = set(u.url for u in links)
+                        embedset = set(u.url for u in embeds)
+
+                        ridealong['task'].doc.burner = {'links':linkset, 'embeds': embedset, 'base': base }
+
+                else:
+
+                    html, content_data, _ = await post_fetch.post_200(f, url, priority, host_geoip,
+                                                                   seed_host, json_log, self)
 
                 ridealong['from_redir']= False
                 ridealong['task'].doc.html = html
+                ridealong['task'].doc.content_data = content_data
 
             await self.make_callback(ridealong,f)
 
@@ -670,7 +685,9 @@ class Crawler:
                             break
 
                         ride_along = self.generate_ridealong(task,parent_task=parent_task)
-                        LOGGER.debug('--> New task generated in: {0} -> {1}'.format(task_name,task.name))
+                        LOGGER.debug('--> New task generated in: {0} -> task_{1} [{2}]'.format(task_name,
+                                                                                          task.name,
+                                                                                          task.req.url.url))
                         self.add_deffered_task(0,ride_along)
 
 
@@ -729,11 +746,6 @@ class Crawler:
                 self.scheduler.work_done()
                 # only here we can say confidentially that any task has been completed after
                 # fetch_and_process is done
-
-
-                #TODO: we need to move from surt as ridealong_id since after initial task submit we
-                # have changed ridealong that has no traces of a previous state, therefore we store
-                # the owner before and after
 
                 is_deffered_owner = ((owner_before == owner_after) & (owner_after == 'deffered_queue'))
 

@@ -191,7 +191,8 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
     else:
         return default_error
 
-async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
+async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler, run_bunner=False):
+
 
     if crawler.warcwriter is not None:
         # needs to use the same algo as post_dns for choosing what to warc
@@ -205,7 +206,7 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
     content_type, content_encoding, charset = content.parse_headers(resp_headers, json_log)
 
 
-    html_types = set(('text/html', '', 'application/xhtml+xml','application/json'))
+    html_types = set(('text/html', 'text/css', '', 'application/xhtml+xml','application/json'))
 
     if content_type in html_types:
         if content_encoding != 'identity':
@@ -222,70 +223,82 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler):
 
         charset_log(json_log, charset, detect, charset_used)
 
+        content_data = (content_type, content_encoding, charset, charset_used) # attached to task.doc
+        if run_bunner:
+            try:
+                result = await do_parser(body, body_bytes, resp_headers, url, crawler)
+                return body, content_data, result
+            except ValueError as e:
+                stats.stats_sum('parser raised', 1)
+                LOGGER.info('parser raised %r', e)
+                # XXX jsonlog
+                return None, None, None
 
-        return body, charset_used
+
+        return body, content_data, None
 
     else:
-        return None,None
+        return None, None, None
+
     # left to make merge easier
-        try:
-            links, embeds, sha1, facets, base = await do_parser(body, body_bytes, resp_headers, url, crawler)
-        except ValueError as e:
-            stats.stats_sum('parser raised', 1)
-            LOGGER.info('parser raised %r', e)
-            # XXX jsonlog
-            return
+    try:
+        links, embeds, sha1, facets, base = await do_parser(body, body_bytes, resp_headers, url, crawler)
+    except ValueError as e:
+        stats.stats_sum('parser raised', 1)
+        LOGGER.info('parser raised %r', e)
+        # XXX jsonlog
+        return
 
-        json_log['checksum'] = sha1
+    json_log['checksum'] = sha1
 
-        geoip.add_facets(facets, host_geoip)
+    geoip.add_facets(facets, host_geoip)
 
-        facet_log = {'url': url.url, 'facets': facets, 'kind': 'get'}
-        if base is not None:
-            facet_log['base'] = base
-        facet_log['checksum'] = sha1
-        facet_log['time'] = json_log['time']
+    facet_log = {'url': url.url, 'facets': facets, 'kind': 'get'}
+    if base is not None:
+        facet_log['base'] = base
+    facet_log['checksum'] = sha1
+    facet_log['time'] = json_log['time']
 
-        seed_host = ridealong.get('seed_host')
-        if seed_host:
-            facet_log['seed_host'] = seed_host
+    seed_host = ridealong.get('seed_host')
+    if seed_host:
+        facet_log['seed_host'] = seed_host
 
-        if crawler.facetlogfd:
-            print(json.dumps(facet_log, sort_keys=True), file=crawler.facetlogfd)
+    if crawler.facetlogfd:
+        print(json.dumps(facet_log, sort_keys=True), file=crawler.facetlogfd)
 
-        LOGGER.debug('parsing content of url %r returned %d links, %d embeds, %d facets',
-                     url.url, len(links), len(embeds), len(facets))
-        json_log['found_links'] = len(links) + len(embeds)
-        stats.stats_max('max urls found on a page', len(links) + len(embeds))
+    LOGGER.debug('parsing content of url %r returned %d links, %d embeds, %d facets',
+                 url.url, len(links), len(embeds), len(facets))
+    json_log['found_links'] = len(links) + len(embeds)
+    stats.stats_max('max urls found on a page', len(links) + len(embeds))
 
-        max_tries = config.read('Crawl', 'MaxTries')
-        queue_embeds = config.read('Crawl', 'QueueEmbeds')
+    max_tries = config.read('Crawl', 'MaxTries')
+    queue_embeds = config.read('Crawl', 'QueueEmbeds')
 
-        new_links = 0
-        ridealong_skeleton = {'priority': priority+1, 'retries_left': max_tries}
-        if seed_host:
-            ridealong_skeleton['seed_host'] = seed_host
-        for u in links:
+    new_links = 0
+    ridealong_skeleton = {'priority': priority+1, 'retries_left': max_tries}
+    if seed_host:
+        ridealong_skeleton['seed_host'] = seed_host
+    for u in links:
+        ridealong = {'url': u}
+        ridealong.update(ridealong_skeleton)
+        if crawler.add_url(priority + 1, ridealong):
+            new_links += 1
+    if queue_embeds:
+        for u in embeds:
             ridealong = {'url': u}
             ridealong.update(ridealong_skeleton)
-            if crawler.add_url(priority + 1, ridealong):
+            if crawler.add_url(priority - 1, ridealong):
                 new_links += 1
-        if queue_embeds:
-            for u in embeds:
-                ridealong = {'url': u}
-                ridealong.update(ridealong_skeleton)
-                if crawler.add_url(priority - 1, ridealong):
-                    new_links += 1
 
-        if new_links:
-            json_log['found_new_links'] = new_links
+    if new_links:
+        json_log['found_new_links'] = new_links
 
-        # XXX process meta-http-equiv-refresh
+    # XXX process meta-http-equiv-refresh
 
-        # XXX plugin for links and new links - post to Kafka, etc
-        # neah stick that in add_url!
+    # XXX plugin for links and new links - post to Kafka, etc
+    # neah stick that in add_url!
 
-        # actual jsonlog is emitted after the return
+    # actual jsonlog is emitted after the return
 
 
 async def do_parser(body, body_bytes, resp_headers, url, crawler):

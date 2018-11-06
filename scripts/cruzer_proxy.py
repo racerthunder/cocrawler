@@ -15,7 +15,8 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.urls import URL
-from yarl import URL as yURL
+from cocrawler.proxy import CruzerProxy, TaskProxy, ProxyChecker
+
 
 
 path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'top-1k.txt'
@@ -45,8 +46,27 @@ def dispatcher():
         #break
 
 
+from _BIN.proxy import Proxy
+class Cruzer(CruzerProxy):
+    proxy = Proxy()
 
-class Cruzer(cocrawler.Crawler):
+    proxy_task_html = TaskProxy() # do not use task_proxy for name
+    validation_html = (proxy_task_html.doc.status == 500)
+
+    checker_html = ProxyChecker(*proxy_task_html.get_cmd(),
+                                condition=any,
+                                apply_for_task=['task_post']
+                                )
+
+    proxy_task_status = TaskProxy() # do not use task_proxy for name
+    validation_status = (proxy_task_status.doc.status == 200)
+
+    checker_status = ProxyChecker(*proxy_task_status.get_cmd(),
+                                  condition=any,
+                                  apply_for_task=['task_last']
+                                  )
+
+#class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
         counter = 0
@@ -56,6 +76,7 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=total):
 
             counter +=1
+            #url = 'http://httpbin.org/get'
             #proxy_url = self.proxy.get_next_proxy_cycle(url)
             req = Req(url)
             domain = req.url.hostname_without_www
@@ -74,7 +95,7 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-
+            print(task.host_ip)
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
             pass

@@ -8,6 +8,7 @@ class Task():
 
     def __init__(self,name,req,**kwargs):
         self.req = req
+        self.run_burner = False # parse links, embeds from html, off by default, result is attached to .doc.burner
         self.last_url = None # store final address of the request
         self.host_ip = None # store first ip address of the list of resolved
         self.name = name

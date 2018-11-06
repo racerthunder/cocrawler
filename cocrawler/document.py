@@ -2,13 +2,16 @@ import defusedxml.lxml
 from lxml.html import HTMLParser,HtmlElement
 from selection import XpathSelector
 from six import BytesIO, StringIO
-from weblib.etree import render_html
 from six.moves.urllib.parse import urlsplit, parse_qs, urljoin
 from weblib.http import smart_urlencode
 import json
+import os
+from cocrawler import content
+from cocrawler import stats
+
+
 from .req import Req
 
-import aiohttp
 '''
 https://github.com/rushter/selectolax - faster 20 times then lxml
 '''
@@ -383,8 +386,10 @@ class Document(FormExtension):
     def __init__(self,html=None,url=None):
         self._html = html
         self.url = url
+        self.content_data = None # tuple (content_type, content_encoding, charset, charset_used)
+        self.burner = None # result of the burner work = (links, embeds, base)
         self._etree = None
-        self._fetcher = None # fetcher complete response object
+        self._fetcher = None # fetcher complete response object, see property
         self.status = None # (int or last_exception) status taken from fetcher response object for quick access
         self._lxml_form = None
 
@@ -443,7 +448,30 @@ class Document(FormExtension):
     fetcher = property(_get_fetcher, _set_fetcher)
 
 
+    def save(self, path):
+        """
+        auto decompress body
+        Save response body to file.
+        """
 
-if __name__ == '__main__':
-    'see /test/cruzer/test_doc'
+        path_dir = os.path.split(path)[0]
+        if not os.path.exists(path_dir):
+            try:
+                os.makedirs(path_dir)
+            except OSError:
+                pass
+
+        body_bytes = self.fetcher.body_bytes
+        if self.content_data:
+            content_type, content_encoding, charset, charset_used = self.content_data
+
+            if content_encoding and content_encoding != 'identity':
+                with stats.record_burn('response body decompress'):
+                    body_bytes = content.decompress(self.fetcher.body_bytes, content_encoding)
+
+
+        with open(path, 'wb') as out:
+            out.write(body_bytes if body_bytes is not None
+                      else b'')
+
 
