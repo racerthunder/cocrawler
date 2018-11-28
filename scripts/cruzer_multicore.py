@@ -272,6 +272,8 @@ def misc():
 
 if __name__ == '__main__':
     '''
+    UPDATE CarbonStats SECTION OF CONFIG !! + upload /cocrawler/dashboard.json to admin panel
+    carbon installation = https://graphite.readthedocs.io/en/latest/install.html
     
     python3 dup_cruzer.py\
     --config Crawl.MaxWorkers:200\

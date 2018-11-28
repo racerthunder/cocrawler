@@ -160,7 +160,8 @@ def remove_dot_segments(path):
 
     segments = path.split('/')
     # drop empty segment pieces to avoid // in output... but not the first segment
-    segments[1:-1] = filter(None, segments[1:-1])
+    # BRC edit, commented line below, breaks wayback archive url, by removing second // in path
+    #segments[1:-1] = filter(None, segments[1:-1])
     resolved_segments = []
     for s in segments[1:]:
         if s == '..':
@@ -252,11 +253,14 @@ def safe_url_canonicalization(url):
 
     if path == '':
         path = '/'
+
     try:
+
         path = remove_dot_segments(path)
     except ValueError:
         LOGGER.info('remove_dot_segments puking on url %s', url)
         raise
+
     path = path.replace('\\', '/')  # might not be 100% safe but is needed for Windows buffoons
     path = unquote(path, unquote_in_path)
     path = quote(path, quote_in_path)
@@ -401,7 +405,6 @@ class URL(object):
             raise
 
         (scheme, netloc, path, query, _) = self._urlsplit
-
         if path == '':
             path = '/'
 

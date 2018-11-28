@@ -435,6 +435,7 @@ class Document(FormExtension):
     def _set_html(self, html):
         self._html = html
 
+    # exists only for certain type of content : text/html, json etc
     html = property(_get_html, _set_html)
 
 

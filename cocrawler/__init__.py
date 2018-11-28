@@ -116,7 +116,7 @@ class Crawler:
         self.paused = paused
         self.no_test = no_test
         self.next_minute = 0
-        self.next_hour = time.time() + 1800
+        self.next_hour = time.time() + 1800 #3600 = hour
         self.max_page_size = int(config.read('Crawl', 'MaxPageSize'))
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
@@ -371,6 +371,7 @@ class Crawler:
 
         work_id = str(uuid.uuid4())
         self.scheduler.set_ridealong(work_id, ridealong)
+
         await self.scheduler.queue_work((priority, rand, work_id))
 
         self.datalayer.add_seen(url)
@@ -437,7 +438,11 @@ class Crawler:
             self.scheduler.del_ridealong(surt)
             return 'no_retries_left'
 
-        LOGGER.debug('--> retrying work: {0}'.format(work))
+        LOGGER.debug('--> retrying work [left: {0}]: {1}, host: {2}'.format(
+                                                        retries_left,
+                                                        work,
+                                                        ridealong['task'].req.url.hostname_without_www
+                                                        ))
         # XXX jsonlog this soft fail
 
         # increment random so that we don't immediately retry
@@ -447,7 +452,7 @@ class Crawler:
         ridealong['priority'] = priority
         ridealong['retries_left'] = retries_left
 
-        await self.add_url(priority,ridealong,rand=rand)
+        self.add_deffered_task(priority, ridealong)
         return ridealong
 
     async def fetch_and_process(self, work):
@@ -610,6 +615,7 @@ class Crawler:
                 ridealong['task'].doc.html = html
                 ridealong['task'].doc.content_data = content_data
 
+
             await self.make_callback(ridealong,f)
 
 
@@ -634,7 +640,7 @@ class Crawler:
         return ridealong['task']
 
     async def make_callback(self,ridealong,f):
-        #partial = functools.partial(self.load_task_function, ridealong, f)
+
         with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
             try:
 
@@ -700,7 +706,7 @@ class Crawler:
             except Exception as ex:
                 LOGGER.warning('--> [TASK GENERATOR ERROR, SEE TRACEBACK BELOW]')
                 traceback.print_exc()
-
+                self.shutdown(message=traceback.print_exc())
 
             if self.reuse_session:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)
@@ -727,6 +733,7 @@ class Crawler:
                         LOGGER.warning('--> No owner found in ridealong: {0}'.format(ridealong))
 
                     owner_before = ridealong['owner']
+
 
                     task = await self.fetch_and_process(work)
 
@@ -1119,6 +1126,10 @@ class Crawler:
 
             try:
                 task = next(self.init_generator)
+
+                if self.proxy_mode:
+                    task.init_proxy = task.req.url.url
+
                 LOGGER.debug('--> new task submited [{2}]: "{0}" for {1}'.format(task.name,
                                                                                task.req.url.url,
                                                                                task.req.method))
@@ -1197,7 +1208,14 @@ class Crawler:
                 self.paused = False
 
             self.workers = [w for w in self.workers if not w.done()]
-            LOGGER.debug('%d workers remain', len(self.workers))
+
+            LOGGER.debug('{0} workers remain [ main queue: {1} , deffered queue: {2} , ridealong size: {3} ]'.format(
+                                                                                len(self.workers),
+                                                                                self.scheduler.qsize(),
+                                                                                self.deffered_queue.qsize(),
+                                                                                len(self.scheduler.ridealong)
+                                                                            ))
+
 
             if len(self.workers) == 0:
                 # this triggers if we've exhausted our url budget and all workers cancel themselves
@@ -1268,11 +1286,15 @@ class Crawler:
 
 
     @classmethod
-    def run(cls):
+    def run(cls, **kwargs):
 
         '''
         Main program: parse args, read config, set up event loop, run the crawler.
         '''
+
+        if kwargs:
+            for key, val in kwargs.items():
+                setattr(cls, key, val)
 
         ARGS = argparse.ArgumentParser(description='Cruzer web crawler')
 

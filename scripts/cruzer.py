@@ -56,7 +56,8 @@ class Cruzer(cocrawler.Crawler):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            #proxy_url = self.proxy.get_next_proxy_cycle(url)
+            url = 'http://vim.org/'
+
             req = Req(url)
             domain = req.url.hostname_without_www
 
@@ -97,9 +98,10 @@ if __name__ == '__main__':
     '''
     command line args example: 
     python3 cruzer.py\
-    --config Crawl.MaxWorkers:3\
-    --config Crawl.CPUControl:False\
+    --config Crawl.MaxWorkers:0\
+    --config Crawl.MaxTries:3\
     --config Crawl.DumpMemory:True\
+    --config Crawl.AllowExternalRedir:False\
     --loglevel INFO\
     --reuse_session
     '''

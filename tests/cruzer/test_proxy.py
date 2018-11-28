@@ -30,7 +30,7 @@ class ProxyToken():
     def __init__(self,token):
         self.token = token
 
-proxy = Proxy()
+proxy = None # Proxy()
 PROXY_TOKEN = ProxyToken('data2')
 
 def proxy_checker(proxy,proxy_token):
@@ -184,11 +184,13 @@ def test_checker():
             return False
 
 
+
     class TaskProxy():
 
         _cls_mock = Mock
 
-        def __init__(self):
+        def __init__(self, need=True):
+            self.need = need # could be used to invert decition, ex. _token in doc.html with False and not_contain = True
             self._cls_mock.left = []
             self._cls_mock.right = None
             self._cls_mock.OP = None
@@ -200,7 +202,7 @@ def test_checker():
 
 
         def get_cmd(self):
-            return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP)
+            return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP, self.need)
 
 
     req1 = Req('http://google.com')
@@ -208,21 +210,24 @@ def test_checker():
     t1.doc.html = 'find me token'
     t1.doc.status = 200
 
+
+    tproxy = TaskProxy(need=False)
+    res = ('token' in tproxy.doc.html)
+
+    checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
+
+
+    # tproxy2 = TaskProxy()
+    # res = (tproxy2.doc.status != 403)
     #
-    # tproxy = TaskProxy()
-    # res = (['token','mee'] < tproxy.doc.html)
-    #
-    # checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
-
-
-    tproxy2 = TaskProxy()
-    res = (tproxy2.doc.status != 403)
-
-    checker = ProxyChecker(*tproxy2.get_cmd(), condition=any)
+    # checker = ProxyChecker(*tproxy2.get_cmd(), condition=any)
 
     print(checker.validate(t1))
 
+    #print(vars(tproxy._cls_mock))
+
 if __name__ == '__main__':
     #main()
+
     test_checker()
 

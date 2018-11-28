@@ -50,20 +50,12 @@ from _BIN.proxy import Proxy
 class Cruzer(CruzerProxy):
     proxy = Proxy()
 
-    proxy_task_html = TaskProxy() # do not use task_proxy for name
-    validation_html = (proxy_task_html.doc.status == 500)
-
-    checker_html = ProxyChecker(*proxy_task_html.get_cmd(),
-                                condition=any,
-                                apply_for_task=['task_post']
-                                )
-
     proxy_task_status = TaskProxy() # do not use task_proxy for name
-    validation_status = (proxy_task_status.doc.status == 200)
+    cond_html = (['token1', 'token2'] in proxy_task_status.doc.html) # validation condition
 
     checker_status = ProxyChecker(*proxy_task_status.get_cmd(),
                                   condition=any,
-                                  apply_for_task=['task_last']
+                                  apply_for_task='all'
                                   )
 
 #class Cruzer(cocrawler.Crawler):
@@ -76,14 +68,9 @@ class Cruzer(CruzerProxy):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            #url = 'http://httpbin.org/get'
-            #proxy_url = self.proxy.get_next_proxy_cycle(url)
-            req = Req(url)
+            proxy_url = self.proxy.get_next_proxy_cycle(url)
+            req = Req(proxy_url)
             domain = req.url.hostname_without_www
-
-            #cookie = {'data':domain,'data2':'val2'}
-            #req.get = cookie
-
 
             yield Task(name='download',req=req,domain=domain)
 

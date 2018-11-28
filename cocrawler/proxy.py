@@ -12,7 +12,7 @@ from furl import furl
 from .urls import URL
 from . import Crawler
 
-from _BIN.proxy import Proxy
+from _BIN.proxy import Proxy, NoAliveProxy
 
 
 _logger = logging.getLogger(__name__)
@@ -47,6 +47,11 @@ class Mock():
         return False
 
     def __contains__(self, __token):
+        '''
+
+        :param __token: str or list
+        :return:
+        '''
 
         self.__class__.OP = operator.contains
 
@@ -61,7 +66,11 @@ class TaskProxy():
 
     _cls_mock = Mock
 
-    def __init__(self):
+    def __init__(self, need=True):
+        '''
+        every call to class properties is recorded and then used to construct calls chain and conseqeuntly get_cmd()
+        '''
+        self.need = need # could be used to invert decision, ex. _token in doc.html with False and not_contain , res= True
         self._cls_mock.left = []
         self._cls_mock.right = None
         self._cls_mock.OP = None
@@ -75,25 +84,28 @@ class TaskProxy():
 
 
 class ProxyChecker(ProxyCheckerBase):
-    def __init__(self, left, right, OP, *, apply_for_task='all', condition=any):
+    def __init__(self, left, right, OP, need, *, apply_for_task='all', condition=any):
 
         self.left = left
         self.right = right
         self.operator = OP
+        self.need = need
 
         self.condition = condition
         self.apply_for_task = apply_for_task
 
 
-    def validate(self, task):
+    def pre_validate(self, task):
 
-        _task = task.doc.status
         for atr in self.left:
             # rewrite task object with every iteration
             task = getattr(task, atr, None)
 
         if self.operator == operator.contains:
             # here self.right is a list of tokens (at least one exists)
+            # if there is any error in fetcher (ex 500, 403) html will always be None, therefore return False
+            if task is None:
+                return False
             is_valid = self.condition([True if token in task else False for token in self.right])
             return is_valid
 
@@ -101,6 +113,13 @@ class ProxyChecker(ProxyCheckerBase):
 
             return self.operator(task, self.right)
 
+    def validate(self, task):
+
+        res = self.pre_validate(task)
+        if res == self.need:
+            return True
+        else:
+            return False
 
 
 def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
@@ -120,17 +139,28 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
 
             if not proxy_checker.validate(task):
 
-                LOGGER.debug('--> Bad proxy for task: {0}, {1}'.format(task.name, task.req.url.url))
+                LOGGER.debug('--> [Bad Proxy] for task: {0}, {1}'.format(task.name, task.req.url.url))
 
-                proxy_bad = furl(task.req.url.url).remove(args=True,fragment_args=True).url
+                proxy_bad = furl(task.init_proxy).remove(args=True,fragment_args=True).url
                 proxy.mark_bad(proxy_bad)
 
-                source_url = furl(task.req.url.url).args['q']
-                new_proxy = proxy.get_next_proxy_cycle()
+                try:
+                    source_url = furl(task.req.url.url).args['q']
+                except KeyError as ex:
+                    LOGGER.warning('--> No proxy url found in link, its ok: {0}'.format(task.req.url.url))
+                    yield StopIteration()
+
+                try:
+                    new_proxy = proxy.get_next_proxy_cycle()
+                except NoAliveProxy as ex:
+                    self.shutdown(ex)
+                    yield StopIteration()
+
                 new_proxy_url = (furl(new_proxy).add({'q':source_url})).url
 
                 task_clone = task.clone_task()
                 task_clone.req.url = URL(new_proxy_url)
+                task_clone.init_proxy = new_proxy_url # if any redir within proxy dont loose original url to mark bad
 
                 yield task_clone
                 yield StopIteration()
@@ -202,8 +232,10 @@ class CruzerProxy(Crawler):
 
         proxy_covered_funcs = CollisionsList() # list of functions that proxy checkers is applied
         for name,class_func in func_ls:
+            #iterate over all task_* functions
 
             for proxy_checker in proxy_checkers:
+                #find if any checker is applied for current 'name'
 
                 _method = MethodType(proxy_checker_wrapp(proxy,proxy_checker)(class_func), self)
 

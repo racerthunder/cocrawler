@@ -29,6 +29,11 @@ class Datalayer:
 
 
     def peewee_setter(self,value):
+        '''
+
+        :param value: <str> or <tuple: database, logging level(default:logging.DEBUG)>
+        :return:
+        '''
 
         def get_async_params(database):
             __params = deepcopy(database.__dict__.get('connect_params') or database.__dict__.get('connect_kwargs'))
@@ -38,6 +43,14 @@ class Datalayer:
             __params['db_name']=database.database
 
             return __params
+
+        if isinstance(value,tuple):
+            value, logging_level = value
+            logger_async = logging.getLogger('peewee.async')
+            logger_async.setLevel(logging_level)
+
+            logger_peewee = logging.getLogger('peewee')
+            logger_peewee.setLevel(logging_level)
 
         if self._a_manager is None:
             async_connect_params = get_async_params(value)

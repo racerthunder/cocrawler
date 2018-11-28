@@ -40,7 +40,7 @@ Crawl:
   MaxRedirs: 10 # max number of redirects for single url, to avoid robot traps
   DnsTimeout: 5
   MaxDepth: 3
-  MaxTries: 0
+  MaxTries: 1
   PageTimeout: 10
   RetryTimeout: 2
   MaxWorkers: 10
@@ -81,14 +81,14 @@ Fetcher:
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
-  DNSCacheMaxSize: 1000
+  DNSCacheMaxSize: 10000
 
 GeoIP:
   DataDir: None
 
 CarbonStats:
  Enabled: False
- Server: 51.158.78.206
+ Server: 51.15.139.130
  Port: 2004
 
 Plugins:
