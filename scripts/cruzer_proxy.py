@@ -46,16 +46,22 @@ def dispatcher():
         #break
 
 
-from _BIN.proxy import Proxy
 class Cruzer(CruzerProxy):
-    proxy = Proxy()
 
     proxy_task_status = TaskProxy() # do not use task_proxy for name
-    cond_html = (['token1', 'token2'] in proxy_task_status.doc.html) # validation condition
+    cond_html = ('html' in proxy_task_status.doc.html) # validation condition
 
     checker_status = ProxyChecker(*proxy_task_status.get_cmd(),
                                   condition=any,
                                   apply_for_task='all'
+                                  )
+
+    proxy_task_body = TaskProxy(need=False) # reverse decision to false, no 'body' should be in html in this example
+    body_exp = ('body' in proxy_task_status.doc.html) # validation condition
+
+    checker_body = ProxyChecker(*proxy_task_body.get_cmd(),
+                                  condition=any,
+                                  apply_for_task=['task_download']
                                   )
 
 #class Cruzer(cocrawler.Crawler):
@@ -68,14 +74,14 @@ class Cruzer(CruzerProxy):
         for url in tqdm(dis,total=total):
 
             counter +=1
-            proxy_url = self.proxy.get_next_proxy_cycle(url)
+            proxy_url = self.proxy_url(url)
             req = Req(proxy_url)
             domain = req.url.hostname_without_www
 
             yield Task(name='download',req=req,domain=domain)
 
             #time.sleep(5)
-            if counter > 0:
+            if counter > 100:
                 break
 
     async def task_download(self,task):

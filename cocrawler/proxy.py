@@ -4,7 +4,7 @@ import logging
 import inspect
 import traceback
 import operator
-import sys
+from collections import defaultdict
 
 import asyncio
 from furl import furl
@@ -14,6 +14,8 @@ from . import Crawler
 
 from _BIN.proxy import Proxy, NoAliveProxy
 
+
+PROXY_CHECKERS = defaultdict(list)
 
 _logger = logging.getLogger(__name__)
 
@@ -80,11 +82,11 @@ class TaskProxy():
         return self._cls_mock()
 
     def get_cmd(self):
-        return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP)
+        return (self._cls_mock.left, self._cls_mock.right, self._cls_mock.OP, self.need)
 
 
 class ProxyChecker(ProxyCheckerBase):
-    def __init__(self, left, right, OP, need, *, apply_for_task='all', condition=any):
+    def __init__(self, left, right, OP, need=True, *, apply_for_task='all', condition=any):
 
         self.left = left
         self.right = right
@@ -114,7 +116,6 @@ class ProxyChecker(ProxyCheckerBase):
             return self.operator(task, self.right)
 
     def validate(self, task):
-
         res = self.pre_validate(task)
         if res == self.need:
             return True
@@ -122,13 +123,13 @@ class ProxyChecker(ProxyCheckerBase):
             return False
 
 
-def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
+def proxy_checker_wrapp(proxy, proxy_checkers,logger=None):
     '''
     Since body of the function contains 'yield' outside world sees is as generator,
     therefore every place where other should see as job completed must yield StopIteration()
 
     :param proxy: Proxy isntance for rotating proxy
-    :param proxy_checker: <ProxyChecker> class for validating task_proxy agains real task
+    :param proxy_checkers: <list><ProxyChecker><list> class for validating task_proxy agains real task
     :param logger: <logging> instance of main crawler
     :return:
     '''
@@ -137,7 +138,7 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
         async def _impl(self,task):
             LOGGER = logger or _logger
 
-            if not proxy_checker.validate(task):
+            if not all([checker.validate(task) for checker in proxy_checkers]):
 
                 LOGGER.debug('--> [Bad Proxy] for task: {0}, {1}'.format(task.name, task.req.url.url))
 
@@ -150,11 +151,9 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
                     LOGGER.warning('--> No proxy url found in link, its ok: {0}'.format(task.req.url.url))
                     yield StopIteration()
 
-                try:
-                    new_proxy = proxy.get_next_proxy_cycle()
-                except NoAliveProxy as ex:
-                    self.shutdown(ex)
-                    yield StopIteration()
+                new_proxy = self.new_proxy()
+                if new_proxy is None:
+                    yield StopIteration('--> No alive proxy left')
 
                 new_proxy_url = (furl(new_proxy).add({'q':source_url})).url
 
@@ -193,66 +192,91 @@ def proxy_checker_wrapp(proxy,proxy_checker,logger=None):
 
     return proxy_inner
 
-class CollisionsList(list):
-    '''
-    do not allow to append duplicates
-    '''
-    def append(self, other):
-        if other in self:
-            raise ValueError('--> Value already added: {0}'.format(other))
-        super().append(other)
+
 
 class CruzerProxy(Crawler):
     '''
     parse task_* method from class and reattach it to cruzer instance alrady decorated by proxy_wrapper
     '''
 
-    def __init__(self):
-        super().__init__()
-        cruzer_vars = CruzerProxy.__subclasses__()[0].__dict__
+    def get_proxy(self):
+        # overload this method to cutom setup proxy isntance
+        return Proxy()
 
-        # --------> get proxy <--------#
-        proxys = [val for name,val in cruzer_vars.items() if isinstance(val,Proxy)]
-        if not len(proxys):
-            raise ValueError('--> Proxy not defined! Add Proxy instance as class attribute')
-        proxy = proxys[0]
+    def new_proxy(self):
+        try:
+            new_proxy = self.proxy.get_next_proxy_cycle()
+            return new_proxy
+        except NoAliveProxy as ex:
+            traceback.print_exc()
+            self.shutdown('--> No alive proxy left')
+            return None
+
+    def proxy_url(self, source_url):
+
+        new_proxy = self.new_proxy()
+        new_proxy_url = self.proxy.get_full_url(new_proxy, source_url)
+        return new_proxy_url
+
+    def __init__(self):
+
+        super().__init__()
+        self.proxy = self.get_proxy()
+
+        cruzer_vars = CruzerProxy.__subclasses__()[0].__dict__
 
         # ------> get proxy token <------ #
         proxy_checkers = [val for name,val in cruzer_vars.items() if isinstance(val,ProxyCheckerBase)]
         if not len(proxy_checkers):
             raise ValueError('--> Proxy token not defined! Add ProxyToken instance as class attribute')
 
+        # make list of task with corresponding checkers
+        for _checker in proxy_checkers:
+            if _checker.apply_for_task == 'all':
+                PROXY_CHECKERS['all'].append(_checker)
+
+            else:
+                if isinstance(_checker.apply_for_task, str):
+                    raise ValueError('--> "apply_for_task must" be list')
+
+                for _task in _checker.apply_for_task:
+                    PROXY_CHECKERS[_task].append(_checker)
+
+
 
         # ------> decorate task_* <------#
         func_ls = [(name,val) for name,val in cruzer_vars.items() if name.startswith('task_') and not
                    name=='task_generator']
 
+        # find if any task_* exists
         if not len(func_ls):
             raise ValueError('--> Cruzer class mush have at least one "task_*" ')
 
-        proxy_covered_funcs = CollisionsList() # list of functions that proxy checkers is applied
+        # check if all task_* are covered with at least one checker
+        if 'all' not in PROXY_CHECKERS.keys():
+            diff = set([x[0] for x in func_ls]).difference(set(PROXY_CHECKERS.keys()))
+
+            if len(diff) > 0:
+                raise ProxyCheckerError('--> Not all tasks are covered with checkers: {0}'.format(str(diff)))
+
         for name,class_func in func_ls:
             #iterate over all task_* functions
 
-            for proxy_checker in proxy_checkers:
-                #find if any checker is applied for current 'name'
+            _checkers = []
+            if PROXY_CHECKERS.get(name, None):
+                _checkers.extend(PROXY_CHECKERS.get(name))
 
-                _method = MethodType(proxy_checker_wrapp(proxy,proxy_checker)(class_func), self)
-
-                if proxy_checker.apply_for_task == 'all':
-                    proxy_covered_funcs.append(name)
-                    setattr(self, name, _method)
-                else:
-                    for applied_task in proxy_checker.apply_for_task:
-                        if applied_task == name:
-                            proxy_covered_funcs.append(name)
-                            setattr(self, name, _method)
+            if 'all' in PROXY_CHECKERS:
+                _checkers.extend(PROXY_CHECKERS['all'])
 
 
-        diff = set([x[0] for x in func_ls]).difference(set(proxy_covered_funcs))
+            _method = MethodType(proxy_checker_wrapp(self.proxy, _checkers)(class_func), self)
 
-        if len(diff) > 0:
-            raise ProxyCheckerError('--> Not all tasks are covered with checkers: {0}'.format(str(diff)))
+            setattr(self, name, _method)
+
+
+
+
 
 
 

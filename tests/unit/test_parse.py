@@ -19,7 +19,7 @@ anchor</a>
 </body>
 '''
 
-with open('/Volumes/crypt/_Coding/PYTHON/SECONDHAND/workflow/MAIN/17/archive/thevotersofaz.com/index.html', encoding='utf-8') as f:
+with open('/Volumes/crypt/_Coding/PYTHON/scrappers/archive.org/archive/citycast.by/tag/statistika/index.html', encoding='utf-8') as f:
     test_html = f.read()
 
 test_html_harder = '''
@@ -170,13 +170,16 @@ test_css = '''
 @import url('foo1.css')
 url(images/foo2.png)
 url( images/foo3.png )
+background: url(i/bg1.png) 0 130px repeat-x;
 '''
 
 
 def test_css_parser():
     links, embeds = parse.find_css_links_re(test_css)
+    print('links: ', links)
+    print('embeds: ', embeds)
     assert len(links) == 0
-    assert len(embeds) == 3
+    assert len(embeds) == 4
     assert 'images/foo3.png' in embeds
 
 
@@ -236,3 +239,4 @@ def test_regex_out_all_script():
 
 if __name__ == '__main__':
     test_full_site()
+    #test_css_parser()

@@ -110,8 +110,9 @@ def clean_urllist(urllist, schemes):
     Drop all elemnts of the urllist that aren't in schemes.
     Used to drop javascript: and data: and whatnot from the list of embeds.
     '''
+    bads = ['"', "'"] # not allowed chars in url
     schemes = tuple(schemes)
-    return [url for url in urllist if not url.startswith(schemes)]
+    return [url for url in urllist if not url.startswith(schemes) and not any([bad for bad in bads if bad in url])]
 
 
 def find_html_links_re(html):
