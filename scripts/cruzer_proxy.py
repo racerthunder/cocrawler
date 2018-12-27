@@ -49,7 +49,7 @@ def dispatcher():
 class Cruzer(CruzerProxy):
 
     proxy_task_status = TaskProxy() # do not use task_proxy for name
-    cond_html = ('html' in proxy_task_status.doc.html) # validation condition
+    cond_html = ('____q' in proxy_task_status.doc.html) # validation condition
 
     checker_status = ProxyChecker(*proxy_task_status.get_cmd(),
                                   condition=any,

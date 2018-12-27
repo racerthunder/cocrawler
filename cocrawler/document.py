@@ -387,6 +387,9 @@ class Document(FormExtension):
         self._html = html
         self.url = url
         self.content_data = None # tuple (content_type, content_encoding, charset, charset_used)
+                                #charset = what we detect using html,
+                                #charset_used = what we eventually used to decode
+
         self.burner = None # result of the burner work = (links, embeds, base)
         self._etree = None
         self._fetcher = None # fetcher complete response object, see property
@@ -449,6 +452,10 @@ class Document(FormExtension):
     fetcher = property(_get_fetcher, _set_fetcher)
 
 
+    @property
+    def headers(self):
+        return self.fetcher.response.raw_headers
+
     def save(self, path):
         """
         auto decompress body
@@ -469,6 +476,12 @@ class Document(FormExtension):
             if content_encoding and content_encoding != 'identity':
                 with stats.record_burn('response body decompress'):
                     body_bytes = content.decompress(self.fetcher.body_bytes, content_encoding)
+
+
+            #
+            # charset, detect = content.my_get_charset(charset, body_bytes)
+            #
+            # body, charset_used = content.my_decode(body_bytes, charset, detect)
 
 
         with open(path, 'wb') as out:

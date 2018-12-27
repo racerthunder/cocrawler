@@ -98,12 +98,12 @@ class CallbackHandler():
         return await asyncio.sleep(0.1)
 
 class Crawler:
-    def __init__(self, reuse_session=False,load=None, no_test=False, paused=False):
+    def __init__(self,load=None, no_test=False, paused=False):
 
         self.cpu_control_worker = None
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
-        self.reuse_session = reuse_session
+        self.reuse_session = bool(config.read('Fetcher', 'ReuseSession'))
 
         self.CONFIG_TARGET_CPU_RANGE = list(range(40,70))
         self.cleanup_ssl_every = 10000 # forcelly call _cleanup_closed() on Connector

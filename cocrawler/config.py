@@ -82,6 +82,7 @@ Fetcher:
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)
   DNSCacheMaxSize: 10000
+  ReuseSession: False  # new session is created for each url
 
 GeoIP:
   DataDir: None
