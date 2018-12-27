@@ -100,15 +100,15 @@ class Robots:
         return self._check(url, schemenetloc, robots, quiet=quiet)
 
     async def check(self, url, host_geoip=None, seed_host=None, crawler=None,
-                    headers=None, proxy=None, mock_robots=None):
+                    headers=None, proxy=None):
         schemenetloc = url.urlsplit.scheme + '://' + url.urlsplit.netloc
 
         try:
             robots = self.datalayer.read_robots_cache(schemenetloc)
             stats.stats_sum('robots cache hit', 1)
         except KeyError:
-            robots = await self.fetch_robots(schemenetloc, mock_robots, host_geoip, seed_host, crawler,
-                                                          headers=headers, proxy=proxy)
+            robots = await self.fetch_robots(schemenetloc, host_geoip, crawler,
+                                             seed_host=seed_host, headers=headers, proxy=proxy)
         return self._check(url, schemenetloc, robots)
 
     def _check(self, url, schemenetloc, robots, quiet=False):
@@ -175,10 +175,9 @@ class Robots:
         self.in_progress.discard(schemenetloc)
         return parsed
 
-    async def fetch_robots(self, schemenetloc, mock_url, host_geoip, seed_host, crawler, headers=None, proxy=None):
+    async def fetch_robots(self, schemenetloc, host_geoip, crawler,
+                           seed_host=None, headers=None, proxy=None):
         '''
-        robotexclusionrules fetcher is not async, so fetch the file ourselves
-
         https://developers.google.com/search/reference/robots_txt
         3xx redir == follow up to 5 hops, then consider it a 404.
         4xx errors == no crawl restrictions
@@ -186,9 +185,6 @@ class Robots:
            if site appears to return 5xx for 404, then 5xx is treated as a 404
         '''
         url = URL(schemenetloc + '/robots.txt')
-
-        if proxy:
-            raise ValueError('not yet implemented')
 
         # We might enter this routine multiple times, so, sleep if we aren't the first
         if schemenetloc in self.in_progress:
@@ -216,7 +212,7 @@ class Robots:
         self.in_progress.add(schemenetloc)
 
         f = await fetcher.fetch(url, self.session, max_page_size=self.max_robots_page_size,
-                                headers=headers, proxy=proxy, mock_url=mock_url,
+                                headers=headers, proxy=proxy,
                                 allow_redirects=True, max_redirects=5, stats_prefix='robots ')
 
         json_log = {'action': 'fetch', 'time': time.time()}
