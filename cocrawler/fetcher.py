@@ -21,6 +21,7 @@ import ssl
 import urllib
 import json
 from pprint import pformat
+from random import randint
 
 import asyncio
 import logging
@@ -95,6 +96,21 @@ def establish_filters():
     logging.getLogger('asyncio').addFilter(f)
 
 
+def common_headers():
+    """
+    Build headers which sends typical browser.
+    """
+
+    return {
+        'Accept': 'text/xml,application/xml,application/xhtml+xml'
+                  ',text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.%d'
+                  % randint(2, 5),
+        'Accept-Language': 'en-us,en;q=0.%d' % (randint(5, 9)),
+        'Accept-Charset': 'utf-8,windows-1251;q=0.7,*;q=0.%d'
+                          % randint(5, 7),
+        'Keep-Alive': '300',
+    }
+
 # XXX should be a policy plugin
 # XXX cookie handling -- no way to have a cookie jar other than at session level
 #    need to directly manipulate domain-level cookie jars to get cookies
@@ -121,6 +137,8 @@ def apply_url_policies(url, crawler):
 
     if crawler.upgrade_insecure_requests:
         headers['Upgrade-Insecure-Requests'] = '1'
+
+    headers.update(common_headers())
 
     return headers, proxy, mock_url, mock_robots
 

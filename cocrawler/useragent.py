@@ -25,6 +25,7 @@ and the URL.
 
 Choices for Style: laptopplus, tabletplus, phoneplus, crawler
 '''
+from user_agent import generate_user_agent
 
 from . import config
 
@@ -34,7 +35,7 @@ phone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 11_3 like Mac OS X) AppleWebKit/605.
 
 
 def useragent(version):
-    ua = config.read('UserAgent')['UA']
+    ua = generate_user_agent()
     return (ua,ua)
 
     uac = config.read('UserAgent')

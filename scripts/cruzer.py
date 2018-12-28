@@ -56,11 +56,7 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-
-            ctype = 2
-
-            url = f'https://majestic.com/charts/referring-domains-discovery-chart/?d={domain}&w=1000&h=250&t=l&a=0&ctype={ctype}&bc=EAEEF0&IndexDataSource=H&entries=100'
-
+            url = 'https://request.urih.com/'
             req = Req(url)
             #domain = req.url.hostname_without_www
 
@@ -69,15 +65,15 @@ class Cruzer(cocrawler.Crawler):
 
 
             yield Task(name='download',req=req,domain=domain)
-            #break
+            break
 
 
     async def task_download(self,task):
 
         if task.doc.status  == 200:
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            save_path = '/Volumes/crypt/_Coding/PYTHON/_FILES/images/{0}.png'.format(task.domain)
-            task.doc.save(save_path)
+            print(task.doc.html)
+            #task.doc.save(save_path)
 
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))

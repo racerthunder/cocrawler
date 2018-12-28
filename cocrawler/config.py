@@ -56,11 +56,6 @@ Crawl:
   DebugMemory: False  # if true print memory usage to stdout
   DumpMemory: False # if true save memory usage to file everyhour
 
-UserAgent:
-  Style: crawler
-  MyPrefix: test-deep
-  URL: http://example.com/cocrawler.html
-  UA: Googlebot/2.1 (+http://www.google.com/bot.html)
 Robots:
   MaxTries: 4
   RobotsCacheSize: 100000  # 40mb-ish
