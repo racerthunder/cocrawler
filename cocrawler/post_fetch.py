@@ -114,6 +114,8 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
                      seed_host=seed_host, location=next_url.url)
 
     ridealong['task'].req.url = next_url
+    # if post was submite and we go a redirect it's usually a next get not post
+    ridealong['task'].req.reset_post()
 
     redir_kind = urls.special_redirect(url, next_url)
     samesurt = url.surt == next_url.surt
@@ -205,6 +207,7 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler, r
     resp_headers = f.response.headers
     content_type, content_encoding, charset = content.parse_headers(resp_headers, json_log)
 
+    content_data = (content_type, None, None, None) # attached to task.doc
 
     html_types = set(('text/html', 'text/css', '', 'application/xhtml+xml','application/json'))
 
@@ -232,13 +235,13 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler, r
                 stats.stats_sum('parser raised', 1)
                 LOGGER.info('parser raised %r', e)
                 # XXX jsonlog
-                return None, None, None
+                return None, content_data, None
 
 
         return body, content_data, None
 
     else:
-        return None, None, None
+        return None, content_data, None
 
     # left to make merge easier
     try:

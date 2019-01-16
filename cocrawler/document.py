@@ -386,7 +386,7 @@ class Document(FormExtension):
     def __init__(self,html=None,url=None):
         self._html = html
         self.url = url
-        self.content_data = None # tuple (content_type, content_encoding, charset, charset_used)
+        self.content_data = (None, None, None, None) # tuple (content_type, content_encoding, charset, charset_used)
                                 #charset = what we detect using html,
                                 #charset_used = what we eventually used to decode
 
@@ -418,6 +418,13 @@ class Document(FormExtension):
             self.parse()
         return XpathSelector(self._etree).select(*args, **kwargs)
 
+    def css_list(self, path):
+        """
+        Find all elements which match given css path.
+        """
+        if self.tree is None:
+            self.parse()
+        return self._etree.cssselect(path)
 
     def _get_etree(self):
         return self._etree
@@ -470,7 +477,7 @@ class Document(FormExtension):
                 pass
 
         body_bytes = self.fetcher.body_bytes
-        if self.content_data:
+        if self.content_data[1]:
             content_type, content_encoding, charset, charset_used = self.content_data
 
             if content_encoding and content_encoding != 'identity':

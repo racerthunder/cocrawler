@@ -20,7 +20,7 @@ PROXY_CHECKERS = defaultdict(list)
 _logger = logging.getLogger(__name__)
 
 class ProxyCheckerError(Exception):pass
-
+class BadProxySignal(ProxyCheckerError):pass
 
 class ProxyCheckerBase():pass
 
@@ -133,6 +133,29 @@ def proxy_checker_wrapp(proxy, proxy_checkers,logger=None):
     :param logger: <logging> instance of main crawler
     :return:
     '''
+    def generate_task_clone(task, self, logger):
+
+        proxy_bad = furl(task.init_proxy).remove(args=True,fragment_args=True).url
+        proxy.mark_bad(proxy_bad)
+
+        try:
+            source_url = furl(task.req.url.url).args['q']
+        except KeyError as ex:
+            logger.warning('--> No proxy url found in link, its ok: {0}'.format(task.req.url.url))
+            return StopIteration()
+
+        new_proxy = self.new_proxy()
+        if new_proxy is None:
+            return StopIteration('--> No alive proxy left')
+
+        new_proxy_url = (furl(new_proxy).add({'q':source_url})).url
+
+        task_clone = task.clone_task()
+        task_clone.req.url = URL(new_proxy_url)
+        task_clone.init_proxy = new_proxy_url # if any redir within proxy dont loose original url to mark bad
+
+        return task_clone
+
     def proxy_inner(method):
         @wraps(method)
         async def _impl(self,task):
@@ -142,41 +165,34 @@ def proxy_checker_wrapp(proxy, proxy_checkers,logger=None):
 
                 LOGGER.debug('--> [Bad Proxy] for task: {0}, {1}'.format(task.name, task.req.url.url))
 
-                proxy_bad = furl(task.init_proxy).remove(args=True,fragment_args=True).url
-                proxy.mark_bad(proxy_bad)
-
-                try:
-                    source_url = furl(task.req.url.url).args['q']
-                except KeyError as ex:
-                    LOGGER.warning('--> No proxy url found in link, its ok: {0}'.format(task.req.url.url))
-                    yield StopIteration()
-
-                new_proxy = self.new_proxy()
-                if new_proxy is None:
-                    yield StopIteration('--> No alive proxy left')
-
-                new_proxy_url = (furl(new_proxy).add({'q':source_url})).url
-
-                task_clone = task.clone_task()
-                task_clone.req.url = URL(new_proxy_url)
-                task_clone.init_proxy = new_proxy_url # if any redir within proxy dont loose original url to mark bad
-
+                task_clone = generate_task_clone(task, self, LOGGER)
                 yield task_clone
                 yield StopIteration()
 
             else:
-                LOGGER.debug('--> proxy is alive task: {0}'.format(task.name))
 
                 try:
                     if asyncio.iscoroutinefunction(method):
                         # no new task will be yielded, run function and return
                         f = asyncio.ensure_future(method(self, task),loop=self.loop)
-                        # result is not needed here, just wait for completion
-                        await f
+                        _result = await f
+
+                        # we can initiate proxy rotation directly from the callback function by returing BadProxySignal
+                        if isinstance(_result, BadProxySignal):
+                            LOGGER.debug('--> [Bad Proxy] *FROM* task: {0}, {1}'.format(task.name, task.req.url.url))
+                            task_clone = generate_task_clone(task, self, LOGGER)
+                            yield task_clone
+                        else:
+                            LOGGER.debug('--> [Alive proxy] task: {0}, host: {1}'.format(task.name,
+                                                                                          task.req.url.hostname_without_www))
+
                         yield StopIteration()
 
                     elif inspect.isasyncgenfunction(method):
                         # we have a generator, load all tasks to the queue
+                        LOGGER.debug('--> [Alive proxy] task: {0}, host: {1}'.format(task.name,
+                                                                                      task.req.url.hostname_without_www))
+
                         async for task in method(self, task):
                             yield task
 

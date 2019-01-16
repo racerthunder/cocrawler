@@ -211,8 +211,8 @@ def test_checker():
     t1.doc.status = 200
 
 
-    tproxy = TaskProxy(need=False)
-    res = ('token' in tproxy.doc.html)
+    tproxy = TaskProxy(need=True)
+    res = ('token' in tproxy.doc.select())
 
     checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
 

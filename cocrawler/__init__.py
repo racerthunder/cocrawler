@@ -16,6 +16,7 @@ import argparse
 from collections import namedtuple
 import inspect
 import uuid
+from pprint import pformat
 
 import sys
 import resource
@@ -1078,10 +1079,16 @@ class Crawler:
 
                     result = await self.add_url(priority,ridealong)
 
-                    LOGGER.debug('--> deffered task added, work queue:{0} url [{2}]: {1}'.format(
+                    if config.read('Fetcher', 'DebugPost'):
+                        debug_post = pformat(ridealong['task'].req.post, indent=3)
+                    else:
+                        debug_post = None
+
+                    LOGGER.debug('--> deffered task added, work queue:{0} url [{2}]: {1} {3}'.format(
                         self.scheduler.qsize(),
                         ridealong['task'].req.url,
-                        ridealong['task'].req.method
+                        ridealong['task'].req.method,
+                        '\n\n {0}\n'.format(debug_post) if debug_post else ''
                     ))
 
 

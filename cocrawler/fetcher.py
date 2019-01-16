@@ -213,7 +213,6 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
                     else:
                         post_data = None
 
-
                     response = await session.request(req.method,mock_url or url.url,
                                                      allow_redirects=allow_redirects,
                                                      max_redirects=max_redirects,

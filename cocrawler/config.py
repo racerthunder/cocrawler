@@ -43,7 +43,7 @@ Crawl:
   MaxTries: 1
   PageTimeout: 10
   RetryTimeout: 2
-  MaxWorkers: 10
+  MaxWorkers: 5
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
@@ -73,6 +73,7 @@ Fetcher:
   DNSWarmupDomain: mail.ru # domain to query ns agains
   CleanClosedSSL: True # every 10000 requests, forcelly call _cleanup_closed() on Connector  
   NameserverTries: 3
+  DebugPost: False
   NameserverTimeout: 3.0
   CrawlLocalhost: False  # crawl ips that resolve to localhost
   CrawlPrivate: False  # crawl ips that resolve to private networks (e.g. 10.*/8)

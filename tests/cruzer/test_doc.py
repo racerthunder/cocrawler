@@ -20,5 +20,14 @@ def main():
     print('url: ',req.url.url)
     #print(render_html(doca.form))
 
+def test_task():
+    from cocrawler.task import Task
+    req = Req('http://google.com')
+    t = Task(name='name', req=req)
+    print(t.doc.status)
+    if t.doc.status == 200:
+        print('ok')
+
 if __name__ == '__main__':
-    main()
+    #main()
+    test_task()

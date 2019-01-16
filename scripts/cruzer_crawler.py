@@ -162,7 +162,7 @@ if __name__ == '__main__':
     python3 cruzer.py\
     --config Crawl.MaxWorkers:10\
     --loglevel INFO\
-    --reuse_session
+    --config Fetcher.ReuseSession:True
     '''
     Cruzer.run()
 

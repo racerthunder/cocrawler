@@ -118,9 +118,16 @@ class Req():
     def set_useragent(self,val):
         self.update_headers({'User-Agent':val})
 
+    def set_referer(self,val):
+        self.update_headers({'Referer':val})
+
     def reset(self):
         self.headers = None
         self.cookies = None
+        self.post = None
+        self.multipart_post = False
+
+    def reset_post(self):
         self.post = None
         self.multipart_post = False
 

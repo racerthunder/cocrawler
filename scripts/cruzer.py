@@ -25,7 +25,7 @@ class Dispatcher():
 
     def __init__(self):
 
-        self.selector = [line.strip() for line in open('list.txt')]
+        self.selector = ['xxxx','aaaa']
 
         self.sel_iter = iter(self.selector)
         self.total = self.get_total()
@@ -56,8 +56,10 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'https://request.urih.com/'
+            url = 'http://domnomore.com/beton-svoimi-rukami-kak-pravilno-rasschitat-proportsii-dlya-ego-izgotovleniya/'
+            #url = 'https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending'
             req = Req(url)
+            req.set_referer('http://robot-serp-bot-ci1.si.yandex.ru')
             #domain = req.url.hostname_without_www
 
             #cookie = {'data':domain,'data2':'val2'}
@@ -71,8 +73,8 @@ class Cruzer(cocrawler.Crawler):
     async def task_download(self,task):
 
         if task.doc.status  == 200:
-            print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
-            print(task.doc.html)
+            print('good: {0} , code: {2} last_url: {1} '.format(task.domain,task.last_url, task.doc.status))
+            #print(task.doc.html)
             #task.doc.save(save_path)
 
         else:
@@ -89,7 +91,7 @@ if __name__ == '__main__':
     --config Crawl.DumpMemory:True\
     --config Crawl.AllowExternalRedir:False\
     --loglevel INFO\
-    --reuse_session
+    --config Fetcher.ReuseSession:True
     '''
     Cruzer.run()
 

@@ -15,36 +15,31 @@ import cocrawler
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.urls import URL
-from cocrawler.proxy import CruzerProxy, TaskProxy, ProxyChecker
+from cocrawler.proxy import CruzerProxy, TaskProxy, ProxyChecker, BadProxySignal
+from _BIN.tools.logs import Counter
 
 
+class Dispatcher():
 
-path = pathlib.Path(__file__).resolve().parent.parent / 'data' / 'top-1k.txt'
+    def __init__(self):
 
+        self.selector = ['aaaa','aqaa']
 
-def get_lines_count(path):
+        self.sel_iter = iter(self.selector)
+        self.total = self.get_total()
 
-    res = check_output(['wc','-l',str(path)])
-    count = int(res.split()[0])
+    def __iter__(self):
+        return self
 
-    return count
+    def get_total(self):
+        return 99
+        total = self.selector.count()
+        print('--> records selected: {0}'.format(total))
+        return total
 
-
-
-LOGGER = logging.getLogger(__name__)
-
-
-
-def dispatcher():
-
-    urls = [line.strip() for line in path.open()]
-
-
-    for url in urls:
-        yield 'http://{0}'.format(url)
-
-        #break
-
+    def __next__(self):
+        row = next(self.sel_iter)
+        return (row)
 
 class Cruzer(CruzerProxy):
 
@@ -57,7 +52,7 @@ class Cruzer(CruzerProxy):
                                   )
 
     proxy_task_body = TaskProxy(need=False) # reverse decision to false, no 'body' should be in html in this example
-    body_exp = ('body' in proxy_task_status.doc.html) # validation condition
+    body_exp = ('body222' in proxy_task_status.doc.html) # validation condition
 
     checker_body = ProxyChecker(*proxy_task_body.get_cmd(),
                                   condition=any,
@@ -67,45 +62,34 @@ class Cruzer(CruzerProxy):
 #class Cruzer(cocrawler.Crawler):
 
     def task_generator(self):
-        counter = 0
-        dis = dispatcher()
-        total = get_lines_count(path)
 
-        for url in tqdm(dis,total=total):
+        dis = Dispatcher()
+        counter = Counter(dis.total, report_every=10)
 
-            counter +=1
+        for host in dis:
+            url = 'http://{0}'.format(host)
+            url = 'https://www.google.com'
+            counter.count()
             proxy_url = self.proxy_url(url)
             req = Req(proxy_url)
             domain = req.url.hostname_without_www
 
             yield Task(name='download',req=req,domain=domain)
-
-            #time.sleep(5)
-            if counter > 100:
-                break
+            break
 
     async def task_download(self,task):
-
+        '''
+        new proxy can be rotated directly from task by returning:
+        return BadProxySignal('--> Proxy is dead bla bla')
+        '''
         if task.doc.status  == 200:
+
             print('good: {0} , last_url: {1}'.format(task.domain,task.last_url))
             print(task.host_ip)
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
             pass
 
-    async def task_second(self,task):
-        if task.doc.status  == 200:
-            print('good222: {0} , last_url: {1}'.format(task.req.url.hostname,task.last_url))
-        else:
-            print('--> bad code in second: {0}, last_exception: {1}'.format(task.last_url,task.doc.status))
-            pass
-
-
-
-
-def misc():
-    p = Proxy()
-    print(p.get_next_proxy_cycle('http://tut.by'))
 
 if __name__ == '__main__':
     '''
