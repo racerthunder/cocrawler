@@ -35,6 +35,7 @@ REST: {}
 #  ServerPort: 8080  # add a + to search for a port
 
 Crawl:
+  ShutdownOnError: False # if any error arise in cruzer shutdown system
   CPUControl: False  # adjust max_workers based on cpu usage
   AllowExternalRedir: True  # should we follow redir to diff domain than the source
   MaxRedirs: 10 # max number of redirects for single url, to avoid robot traps

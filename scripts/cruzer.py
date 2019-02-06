@@ -56,7 +56,7 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'http://domnomore.com/beton-svoimi-rukami-kak-pravilno-rasschitat-proportsii-dlya-ego-izgotovleniya/'
+            url = 'http://web.archive.org/web/20170216045426id_/http://kimberleywhales.com.au/wp-json/oembed/1.0'
             #url = 'https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending'
             req = Req(url)
             req.set_referer('http://robot-serp-bot-ci1.si.yandex.ru')
@@ -71,10 +71,11 @@ class Cruzer(cocrawler.Crawler):
 
 
     async def task_download(self,task):
+        c_type = task.doc.content_data[0] if task.doc.content_data else None
 
         if task.doc.status  == 200:
-            print('good: {0} , code: {2} last_url: {1} '.format(task.domain,task.last_url, task.doc.status))
-            #print(task.doc.html)
+            print('good: {0} , code: {2} last_url: {1} c_type: {3}'.format(task.domain,task.last_url, task.doc.status, c_type))
+            #print(task.doc.html)3
             #task.doc.save(save_path)
 
         else:

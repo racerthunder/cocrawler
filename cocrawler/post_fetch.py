@@ -115,7 +115,6 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
     ridealong['task'].req.url = next_url
     # if post was submite and we go a redirect it's usually a next get not post
-    ridealong['task'].req.reset_post()
 
     redir_kind = urls.special_redirect(url, next_url)
     samesurt = url.surt == next_url.surt
@@ -131,24 +130,32 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
 
     queue_next = True
 
-    if redir_kind is None:
-        if samesurt:
-            LOGGER.debug('Whoops, %s is samesurt but not a special_redirect: %s to %s, location %s',
-                        prefix, url.url, next_url.url, location)
-    elif redir_kind == 'same':
-        LOGGER.debug('attempted redirect to myself: %s to %s, location was %s', url.url, next_url.url, location)
-        if 'Set-Cookie' not in resp_headers:
-            LOGGER.debug(prefix+' to myself and had no cookies.')
-            stats.stats_sum(prefix+' same with set-cookie', 1)
+    if ridealong['task'].req.method == 'GET':
+        '''
+        redirect rules are applied only for GET requests only
+        '''
+
+        if redir_kind is None:
+            if samesurt:
+                LOGGER.debug('Whoops, %s is samesurt but not a special_redirect: %s to %s, location %s',
+                            prefix, url.url, next_url.url, location)
+        elif redir_kind == 'same':
+            LOGGER.debug('attempted redirect to myself: %s to %s, location was %s', url.url, next_url.url, location)
+            if 'Set-Cookie' not in resp_headers:
+                LOGGER.debug(prefix+' to myself and had no cookies.')
+                stats.stats_sum(prefix+' same with set-cookie', 1)
+            else:
+                stats.stats_sum(prefix+' same without set-cookie', 1)
+            seeds.fail(ridealong, crawler)
+            queue_next = False
+
         else:
-            stats.stats_sum(prefix+' same without set-cookie', 1)
-        seeds.fail(ridealong, crawler)
-        queue_next = False
+            LOGGER.debug('special redirect of type %s for url %s', redir_kind, url.url)
+            # XXX push this info onto a last-k for the host
+            # to be used pre-fetch to mutate urls we think will redir
 
     else:
-        LOGGER.debug('special redirect of type %s for url %s', redir_kind, url.url)
-        # XXX push this info onto a last-k for the host
-        # to be used pre-fetch to mutate urls we think will redir
+        ridealong['task'].req.reset_post()
 
     if config.read('Crawl', 'AllowExternalRedir') is False:
         # do not allow redirect to external domains, consequently www. or https to the same domain is left as valid

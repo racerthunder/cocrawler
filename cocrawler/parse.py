@@ -89,6 +89,7 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
         embeds.update(ebody)
 
     embeds = clean_urllist(embeds, ('javascript:', 'data:'))
+    links = clean_urllist(links, ('javascript:', 'data:'))
 
     with stats.record_burn(burn_prefix+'url_clean_join', url=url):
         links = url_clean_join(links, url=base_or_url)

@@ -653,6 +653,10 @@ class Crawler:
             except Exception as ex:
                 traceback.print_exc()
 
+                if config.read('Crawl', 'ShutdownOnError'):
+                    self.shutdown(ex)
+
+
 
     def fill_task(self,task,fr):
         task.doc.fetcher = fr
@@ -707,7 +711,7 @@ class Crawler:
             except Exception as ex:
                 LOGGER.warning('--> [TASK GENERATOR ERROR, SEE TRACEBACK BELOW]')
                 traceback.print_exc()
-                self.shutdown(message=traceback.print_exc())
+                self.shutdown(message=traceback.format_exc())
 
             if self.reuse_session:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)
@@ -1079,7 +1083,7 @@ class Crawler:
 
                     result = await self.add_url(priority,ridealong)
 
-                    if config.read('Fetcher', 'DebugPost'):
+                    if config.read('Fetcher', 'DebugPost') and ridealong['task'].req.method == 'POST':
                         debug_post = pformat(ridealong['task'].req.post, indent=3)
                     else:
                         debug_post = None

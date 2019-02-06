@@ -13,13 +13,14 @@ href = foo2.htm>Anchor 2</a>
 <a
  href='foo3.html '>Anchor 3</a>
 <img src=foo.gif />
+<a href="javascript:void(0)">annn</a>
 <a href='torture"
 <url>'>torture
 anchor</a>
 </body>
 '''
 
-with open('/Volumes/crypt/_Coding/PYTHON/scrappers/archive.org/archive/citycast.by/tag/statistika/index.html', encoding='utf-8') as f:
+with open('buffer.html', encoding='utf-8') as f:
     test_html = f.read()
 
 test_html_harder = '''
