@@ -141,7 +141,7 @@ def apply_url_policies(url, crawler):
     return headers, proxy, mock_url, mock_robots
 
 
-FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'req_headers',
+FetcherResponse = namedtuple('FetcherResponse', ['response', 'body_bytes', 'ip', 'req_headers',
                                                  't_first_byte', 't_last_byte', 'is_truncated',
                                                  'last_exception'])
 
@@ -289,20 +289,17 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         traceback.print_exc()
 
     if last_exception is not None:
-        LOGGER.debug('we failed working on %s, the last exception is %s', mock_url or url.url, last_exception)
-        return FetcherResponse(None, None, None, None, None, False, last_exception)
+
         LOGGER.info('we failed working on %s, the last exception is %s', url.url, last_exception)
         return FetcherResponse(None, None, None, None, None, None, False, last_exception)
 
-    fr = FetcherResponse(response, body_bytes, ip, response.request_info.headers,
     # create new class response not to bring entire asyncio Response class along the workflow (memory leak)
     resp = Resp(url=response.url,
                 status = response.status,
                 headers=response.headers,
                 raw_headers = response.raw_headers)
 
-    fr = FetcherResponse(resp, body_bytes, response.request_info.headers,
-                         t_first_byte, t_last_byte, is_truncated, None)
+    fr = FetcherResponse(resp, body_bytes, ip, response.request_info.headers,t_first_byte, t_last_byte, is_truncated, None)
 
     if resp.status >= 500:
         LOGGER.debug('server returned http status %d', resp.status)
@@ -330,6 +327,10 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
 
     return fr
 
+def global_policies():
+    proxy = config.read('Fetcher', 'ProxyAll')
+    prefetch_dns = not proxy or config.read('GeoIP', 'ProxyGeoIP')
+    return proxy, prefetch_dns
 
 def upgrade_scheme(url):
     '''

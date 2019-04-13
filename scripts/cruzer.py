@@ -10,10 +10,11 @@ import time
 import asyncio
 from yarl import URL as yURL
 
-import cocrawler
+
 from cocrawler.task import Task
 from cocrawler.req import Req
 from cocrawler.urls import URL
+import cocrawler
 
 from _BIN.tools.logs import Counter
 
@@ -75,6 +76,7 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , code: {2} last_url: {1} c_type: {3}'.format(task.domain,task.last_url, task.doc.status, c_type))
+            print('ip: ', task.host_ip)
             #print(task.doc.html)3
             #task.doc.save(save_path)
 

@@ -198,7 +198,7 @@ class Crawler:
 
         self.datalayer = datalayer.Datalayer(self)
         self.robots = robots.Robots(self.robotname, 'dummy_session', self.datalayer)
-        self.scheduler = scheduler.Scheduler(self.max_workers,self.robots)
+        self.scheduler = scheduler.Scheduler(self.max_workers,self.robots, self.resolver)
 
         self.crawllog = config.read('Logging', 'Crawllog')
         if self.crawllog:
@@ -664,11 +664,7 @@ class Crawler:
         task.doc.fetcher = fr
         task.doc.status = fr.response.status if fr.response else fr.last_exception
         task.last_url = str(fr.response.url) if fr.response else None
-        ip_data = self.resolver.get_cache_entry(task.req.url.hostname)
-
-        if ip_data and len(ip_data):
-            ip = ip_data[0][0].get('host',None)
-            task.host_ip = ip
+        task.host_ip = fr.ip
 
         return task
 
