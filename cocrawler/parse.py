@@ -69,7 +69,7 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
             head_soup = BeautifulSoup(head, 'lxml')
         except Exception as e:
             LOGGER.info('url %s threw the %r exception in BeautifulSoup', url, e)
-            # TODO: if common, we need to recover not skip
+            stats.stats_sum('head soup exception '+str(e), 1)
             raise
 
     base = head_soup.find('base') or {}
@@ -77,7 +77,6 @@ def do_burner_work_html(html, html_bytes, headers, burn_prefix='', url=None):
     if base:
         # base can be relative, e.g. 'subdir/' or '.'
         base = urllib.parse.urljoin(url.url, base)
-        print("base is", repr(base))
     base_or_url = base or url
 
     with stats.record_burn(burn_prefix+'find_head_links_soup', url=url):

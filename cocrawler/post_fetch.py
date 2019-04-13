@@ -13,6 +13,7 @@ from functools import partial
 import json
 import codecs
 import traceback
+import time
 
 import multidict
 from bs4 import BeautifulSoup
@@ -31,7 +32,16 @@ LOGGER = logging.getLogger(__name__)
 
 # aiohttp.ClientReponse lacks this method, so...
 def is_redirect(response):
-    return 'Location' in response.headers and response.status in (301, 302, 303, 307, 308)
+    return 'Location' in response.headers and response.status in {301, 302, 303, 307, 308}
+
+
+def should_retry(f):
+    if f.last_exception is not None:
+        return True
+    if f.response.status >= 500:
+        return True
+    if f.response.status in {403, 429}:
+        return True
 
 
 def charset_log(json_log, charset, detect, charset_used):
@@ -207,7 +217,7 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler, r
         # needs to use the same algo as post_dns for choosing what to warc
         # insert the digest instead of computing it twice? see sha1 below
         # we delayed decompression so that we could warc the compressed body
-        crawler.warcwriter.write_request_response_pair(url.url, f.req_headers,
+        crawler.warcwriter.write_request_response_pair(url.url, f.ip, f.req_headers,
                                                        f.response.raw_headers, f.is_truncated, f.body_bytes,
                                                        decompressed=False)
 
@@ -332,4 +342,5 @@ async def do_parser(body, body_bytes, resp_headers, url, crawler):
 
 def post_dns(dns, expires, url, crawler):
     if crawler.warcwriter is not None:  # needs to use the same algo as post_200 for choosing what to warc
-        crawler.warcwriter.write_dns(dns, expires, url)
+        now = time.time()
+        crawler.warcwriter.write_dns(dns, expires-now, url)

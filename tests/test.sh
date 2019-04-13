@@ -90,10 +90,28 @@ echo
 echo aiohttp-fetch
 echo
 $COVERAGE ../scripts/aiohttp-fetch.py http://127.0.0.1:8080/hello > /dev/null
+$COVERAGE ../scripts/aiohttp-fetch.py http://127.0.0.1:8080/ordinary-with-redir/0 > /dev/null
 echo
 echo aiohttp-fetch -- expect dns fail
 echo
 $COVERAGE ../scripts/aiohttp-fetch.py http://this-dns-lookup-will-fail-and-raise.com:8080/hello
+
+echo
+echo dump-soup
+echo
+$COVERAGE ../scripts/dump-soup.py http://127.0.0.1:8080/ordinary/0 > /dev/null
+
+# last because it leaves the mock webserver in a sleep
+echo
+echo test-timeout
+echo expect a lot of mock webserver spew
+echo
+$COVERAGE ../scripts/crawl.py --configfile test-timeout.yml
+sleep 3
+echo
+echo end of expected mock webserver spew
+echo
+rm -f robotslog.jsonl crawllog.jsonl
 
 echo
 echo tearing down mock webserver
@@ -120,12 +138,6 @@ echo bench_dns check with bad nameserver, expected to say \'not suitable for cra
 echo
 
 $COVERAGE ../scripts/bench_dns.py --count=3 --config Fetcher.Nameservers:4.2.2.1 --expect-not-suitable
-
-echo
-echo dns-fetch
-echo
-
-$COVERAGE ../scripts/dns-fetch.py example.com --config Fetcher.Nameservers:8.8.8.8
 
 echo
 echo reached test.sh exit

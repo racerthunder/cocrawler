@@ -14,6 +14,7 @@ import os
 import random
 from bottle import hook, route, run, request, abort, redirect
 from urllib.parse import urlsplit
+import time
 
 
 def generate_robots(host):
@@ -79,6 +80,8 @@ def generate_ordinary(name, host):
         redirect('/ordinary/{}'.format(name+1))
     if host.startswith('503'):
         abort(503, 'Slow down, you move too fast. You got to make the morning last.\n')
+    if host.startswith('pagetimeout'):
+        time.sleep(6)  # see PageTimeout in test-timeout.yml
 
     mylinks = links.format((name+1) % 1000, (2*name) % 1000)
     return header + mylinks + trailer
@@ -88,6 +91,10 @@ def generate_ordinary_503s(name, host):
     if random.randint(1, 9) < 2:  # 10% chance
         abort(503, 'Slow down, you move too fast. You got to make the morning last.\n')
     return generate_ordinary(name, host)
+
+
+def generate_ordinary_redir(name, host):
+    redirect('/ordinary/{}'.format(name))
 
 
 def generate_code(code, host):
@@ -153,7 +160,13 @@ def ordinary(name):
 @route('/ordinary-with-503s/<name:int>')
 def ordinary503(name):
     host = request.get_header('Host')
-    return generate_ordinary_503s(name, host, ua)
+    return generate_ordinary_503s(name, host)
+
+
+@route('/ordinary-with-redir/<name:int>')
+def ordinary503(name):
+    host = request.get_header('Host')
+    return generate_ordinary_redir(name, host)
 
 
 @route('/code/<code:int>')

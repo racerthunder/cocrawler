@@ -173,7 +173,7 @@ class Crawler:
         #conn._cleanup_closed_disabled = True # for testing
         self.connector = conn
 
-        connect_timeout = config.read('Crawl', 'ConnectTimeout')
+        connect_timeout = float(config.read('Crawl', 'ConnectTimeout'))
         page_timeout = float(config.read('Crawl', 'PageTimeout'))
         timeout_kwargs = {}
         if connect_timeout:
@@ -227,6 +227,7 @@ class Crawler:
         self.warcwriter = warc.setup(self.version, self.warcheader_version, local_addr)
 
         url_allowed.setup()
+        stats.init()
 
         if load is not None:
             self.load_all(load)
@@ -668,7 +669,7 @@ class Crawler:
         if ip_data and len(ip_data):
             ip = ip_data[0][0].get('host',None)
             task.host_ip = ip
-            
+
         return task
 
     async def load_task_function(self,ridealong,fr):
@@ -756,6 +757,7 @@ class Crawler:
 
                 #we track task_done for deffered queue separatelly for correct join
 
+                    # note that this leaks the ridealong
                 self.scheduler.work_done()
                 # only here we can say confidentially that any task has been completed after
                 # fetch_and_process is done

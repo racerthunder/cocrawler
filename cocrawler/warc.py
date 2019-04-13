@@ -13,7 +13,6 @@ import socket
 import logging
 from collections import OrderedDict
 from io import BytesIO
-import time
 
 from . import config
 
@@ -148,7 +147,7 @@ class CCWARCWriter:
             self.f.close()
             self.writer = None
 
-    def write_dns(self, dns, expires, url):
+    def write_dns(self, dns, ttl, url):
         # write it out even if empty
         # TODO: we filter the addresses early, should we warc the unfiltered dns repsonse?
 
@@ -156,7 +155,7 @@ class CCWARCWriter:
         # but it has family=2 AF_INET (ipv4) and flags=4 AI_NUMERICHOST -- that's 'A'
         kind = 'A'  # fixme IPV6
 
-        ttl = int(expires - time.time())
+        ttl = int(ttl)
         host = url.hostname
 
         if self.writer is None:
@@ -166,7 +165,7 @@ class CCWARCWriter:
 
         for r in dns:
             try:
-                payload += host + '.\t' + str(ttl) + '\tIN\t' + kind + '\t' + r['host'] + '\r\n'
+                payload += '\t'.join((host+'.', str(ttl), 'IN', kind, r['host'])) + '\r\n'
             except Exception as e:
                 LOGGER.info('problem converting dns reply for warcing', host, r, e)
                 pass
@@ -203,7 +202,7 @@ class CCWARCWriter:
                 ret.append((h, v))
         return ret
 
-    def write_request_response_pair(self, url, req_headers, resp_headers, is_truncated, payload, digest=None, decompressed=False):
+    def write_request_response_pair(self, url, ip, req_headers, resp_headers, is_truncated, payload, digest=None, decompressed=False):
         if self.writer is None:
             self.open()
 
@@ -215,7 +214,10 @@ class CCWARCWriter:
         fake_resp_headers = self._fake_resp_headers(resp_headers, len(payload), decompressed=decompressed)
         resp_http_headers = StatusAndHeaders('200 OK', fake_resp_headers, protocol='HTTP/1.1')
 
-        warc_headers_dict = {}
+        warc_headers_dict = OrderedDict()
+        if ip is not None:
+            # ip should be here unless we crawl through a proxy
+            warc_headers_dict['WARC-IP-Address'] = ip
         if digest is not None:
             warc_headers_dict['WARC-Payload-Digest'] = digest
         if is_truncated:

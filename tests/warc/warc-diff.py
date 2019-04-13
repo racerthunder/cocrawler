@@ -1,15 +1,13 @@
-#uuid:...>
-#WARC-DATE: ...
-
 import sys
+import difflib
 
 f1 = sys.argv[1]
 f2 = sys.argv[2]
 
-with open(f1, 'r') as fd1:
-    contents1 = fd1.read()
-with open(f1, 'r') as fd1:
-    contents2 = fd1.read()
+with open(f1, 'r') as fd:
+    contents1 = fd.read()
+with open(f2, 'r') as fd:
+    contents2 = fd.read()
 
 
 def munge(s):
@@ -24,11 +22,21 @@ def munge(s):
             line, _, _ = line.partition(':uuid:')
         elif line.startswith('WARC-Date:'):
             line = 'WARC-Date:'
-        out += line
+        elif line.startswith('software:'):
+            continue
+        out += line + '\n'
     return out
 
-if munge(contents1) == munge(contents2):
+m1 = munge(contents1)
+m2 = munge(contents2)
+
+if m1 == m2:
     sys.exit(0)
-else:
-    print('{} and {} differ'.format(f1, f2))
-    sys.exit(1)
+
+print('{} and {} differ'.format(f1, f2))
+
+for line in difflib.unified_diff(m1.splitlines(), m2.splitlines(),
+                                 fromfile=f1, tofile=f2):
+    print(line)
+
+sys.exit(1)

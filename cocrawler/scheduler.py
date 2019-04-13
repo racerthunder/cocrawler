@@ -17,17 +17,19 @@ import logging
 import cachetools.ttl
 import json
 
-import pympler.asizeof
-
 from . import config
 from . import stats
 from . import memory
+from . import dns
+from . import fetcher
 
 LOGGER = logging.getLogger(__name__)
 
 
 class Scheduler:
-    def __init__(self,max_workers, robots):
+    def __init__(self,max_workers, robots, resolver):
+        self.resolver = resolver
+        self.robots = robots
         self.max_workers=max_workers
         self.q = asyncio.PriorityQueue(maxsize=self.max_workers)
         self.ridealong = {}
@@ -41,6 +43,8 @@ class Scheduler:
         self.initialize_budgets()
         self.robots = robots
 
+        _, prefetch_dns = fetcher.global_policies()
+        self.use_ip_key = prefetch_dns
         memory.register_debug(self.memory)
 
     def initialize_budgets(self):
@@ -92,7 +96,6 @@ class Scheduler:
 
             try:
                 work = self.q.get_nowait()
-
             except asyncio.queues.QueueEmpty:
                 # using awaiting_work to see if all workers are idle can race with sleeping s.q.get()
                 # putting it in an except clause makes sure the race is only run when
@@ -134,7 +137,14 @@ class Scheduler:
 
             return work
 
-    def schedule_work(self, now, surt, surt_host, ridealong):
+    def next_slot(self, now, keys):
+        times = [0.]
+        for key in keys:
+            if key in self.next_fetch:
+                times.append(self.next_fetch[key] - now)
+        return max(times)
+
+    async def schedule_work(self, surt, surt_host, ridealong):
         recycle, why, dt = False, None, 0
 
         # does host have cached dns? XXX
@@ -151,12 +161,18 @@ class Scheduler:
         #     why = 'scheduler cached robots deny'
         #     return recycle, why, 0.
 
-        # when's the next available rate limit slot?
-        now = time.time()
-        if surt_host in self.next_fetch:
-            dt = max(self.next_fetch[surt_host] - now, 0.)
+        if self.use_ip_key:
+            entry = await dns.prefetch(ridealong['url'], self.resolver)
+            ip_key = dns.entry_to_ip_key(entry)
         else:
-            dt = 0
+            ip_key = None
+
+        now = time.time()  # get time after potentially waiting for dns
+
+        keys = [k for k in (ip_key, surt_host) if k]
+        LOGGER.debug('keys are %r', keys)
+        dt = self.next_slot(now, keys)
+        LOGGER.debug('dt is %f', dt)
 
         if dt > 3.0:
             recycle = True
@@ -164,9 +180,11 @@ class Scheduler:
             dt = 3.0
         elif dt > 0:
             why = 'scheduler ratelimit short sleep'
-            self.next_fetch[surt_host] = now + dt + self.delta_t
+            for k in keys:
+                self.next_fetch[k] = now + dt + self.delta_t
         else:
-            self.next_fetch[surt_host] = now + self.delta_t
+            for k in keys:
+                self.next_fetch[k] = now + self.delta_t
 
         return recycle, why, dt
 
@@ -308,16 +326,16 @@ class Scheduler:
         Return a dict summarizing the scheduler's memory usage
         '''
         q = {}
-        q['bytes'] = pympler.asizeof.asizesof(self.q)[0]
+        q['bytes'] = memory.total_size(self.q)
         q['len'] = self.q.qsize()
         ridealong = {}
-        ridealong['bytes'] = pympler.asizeof.asizesof(self.ridealong)[0]
+        ridealong['bytes'] = memory.total_size(self.ridealong)
         ridealong['len'] = len(self.ridealong)
         next_fetch = {}
-        next_fetch['bytes'] = pympler.asizeof.asizesof(self.next_fetch)[0]
+        next_fetch['bytes'] = memory.total_size(self.next_fetch)
         next_fetch['len'] = len(self.next_fetch)
         frozen_until = {}
-        frozen_until['bytes'] = pympler.asizeof.asizesof(self.frozen_until)[0]
+        frozen_until['bytes'] = memory.total_size(self.frozen_until)
         frozen_until['len'] = len(self.frozen_until)
         return {'q': q, 'ridealong': ridealong,
                 'next_fetch': next_fetch, 'frozen_until': frozen_until}

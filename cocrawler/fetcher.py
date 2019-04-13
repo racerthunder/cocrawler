@@ -3,8 +3,6 @@ async fetching of urls.
 
 Assumes robots checks have already been done.
 
-Supports server mocking; proxies are not yet implemented.
-
 Success returns response object and response bytes (which were already
 read in order to shake out all potential network-related exceptions.)
 
@@ -170,13 +168,6 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
     dns_log = get_dns_log(dns_entry)
 
 
-    if proxy:  # pragma: no cover
-        proxy = aiohttp.ProxyConnector(proxy=proxy)
-        # XXX we need to preserve the existing connector config (see cocrawler.__init__ for conn_kwargs)
-        # XXX we should rotate proxies every fetch in case some are borked
-        # XXX use proxy history to decide not to use some
-        raise ValueError('not yet implemented')
-
     last_exception = None
     is_truncated = False
 
@@ -186,6 +177,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         body_bytes = b''
         blocks = []
         left = max_page_size
+        ip = None
 
         # Dead straight timeout to fight hanged mostly https connections in aiohttp pool
         with async_timeout.timeout(int(config.read('Crawl', 'PageTimeout'))):
@@ -223,88 +215,86 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
                     # XXX should use tracing events to get t_first_byte
                     t_first_byte = '{:.3f}'.format(time.time() - t0)
 
-                    while left > 0:
-                        block = await response.content.read(left)
-                        if not block:
-                            body_bytes = b''.join(blocks)
-                            break
-                        blocks.append(block)
-                        left -= len(block)
-                    else:
+                if not proxy:
+                    try:
+                        ip, _ = response.connection.transport.get_extra_info('peername', default=None)
+                    except AttributeError:
+                        pass
+
+                while left > 0:
+                    block = await response.content.read(left)
+                    if not block:
                         body_bytes = b''.join(blocks)
+                        break
+                    blocks.append(block)
+                    left -= len(block)
+                else:
+                    body_bytes = b''.join(blocks)
 
-                    if not response.content.at_eof():
-                        stats.stats_sum('fetch truncated length', 1)
-                        response.close()  # this does interrupt the network transfer
-                        is_truncated = 'length'  # testme WARC
+                if not response.content.at_eof():
+                    stats.stats_sum(stats_prefix+'fetch truncated length', 1)
+                    response.close()  # this does interrupt the network transfer
+                    is_truncated = 'length'  # testme WARC
 
-                    t_last_byte = '{:.3f}'.format(time.time() - t0)
-
-
+                t_last_byte = '{:.3f}'.format(time.time() - t0)
     except asyncio.TimeoutError as e:
-        stats.stats_sum('fetch timeout', 1)
+        stats.stats_sum(stats_prefix+'fetch timeout', 1)
         last_exception = 'TimeoutError'
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'time'  # testme WARC
-            stats.stats_sum('fetch timeout body bytes found', 1)
-            stats.stats_sum('fetch timeout body bytes found bytes', len(body_bytes))
-#    except (aiohttp.ClientError.ClientResponseError.TooManyRedirects) as e:
-#        # XXX remove me when I stop using redirects for robots.txt fetching
-#        raise
+            stats.stats_sum(stats_prefix+'fetch timeout body bytes found', 1)
+            stats.stats_sum(stats_prefix+'fetch timeout body bytes found bytes', len(body_bytes))
     except (aiohttp.ClientError) as e:
         # ClientError is a catchall for a bunch of things
         # e.g. DNS errors, '400' errors for http parser errors
         # ClientConnectorCertificateError for an SSL cert that doesn't match hostname
         # ClientConnectorError(None, None) caused by robots redir to DNS fail
         # ServerDisconnectedError(None,) caused by servers that return 0 bytes for robots.txt fetches
-        # TooManyRedirects("0, message=''",) caused by too many robots.txt redirs
-
-        stats.stats_sum('fetch ClientError', 1)
+        # TooManyRedirects("0, message=''",) caused by too many robots.txt redirs 
+        stats.stats_sum(stats_prefix+'fetch ClientError', 1)
         detailed_name = str(type(e).__name__)
         dns_line = None #'dns [{0}]: {1}'.format(dns_log[0],dns_log[1])
         last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + '{0}'.format(dns_line or '')
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'disconnect'  # testme WARC
-            stats.stats_sum('fetch ClientError body bytes found', 1)
-            stats.stats_sum('fetch ClientError body bytes found bytes', len(body_bytes))
+            stats.stats_sum(stats_prefix+'fetch ClientError body bytes found', 1)
+            stats.stats_sum(stats_prefix+'fetch ClientError body bytes found bytes', len(body_bytes))
     except ssl.CertificateError as e:
         # unfortunately many ssl errors raise and have tracebacks printed deep in aiohttp
         # so this doesn't go off much
-        stats.stats_sum('fetch SSL error', 1)
+        stats.stats_sum(stats_prefix+'fetch SSL error', 1)
         last_exception = 'CertificateError: ' + str(e)
-    #except (ValueError, AttributeError, RuntimeError) as e:
-        # supposedly aiohttp 2.1 only fires these on programmer error, but here's what I've seen in the past:
+    except ValueError as e:
+        # no A records found -- raised by our dns code
+        # aiohttp raises:
         # ValueError Location: https:/// 'Host could not be detected' -- robots fetch
         # ValueError Location: http:// /URL should be absolute/ -- robots fetch
         # ValueError 'Can redirect only to http or https' -- robots fetch -- looked OK to curl!
-        # AttributeError: ?
-        # RuntimeError: ?
-    except ValueError as e:
-        # no A records found -- raised by my dns code
-        stats.stats_sum('fetch other error - ValueError', 1)
+        stats.stats_sum(stats_prefix+'fetch other error - ValueError', 1)
         last_exception = 'ValueErorr: ' + str(e)
     except AttributeError as e:
-        stats.stats_sum('fetch other error - AttributeError', 1)
+        stats.stats_sum(stats_prefix+'fetch other error - AttributeError', 1)
         last_exception = 'AttributeError: ' + str(e)
     except RuntimeError as e:
-        stats.stats_sum('fetch other error - RuntimeError', 1)
+        stats.stats_sum(stats_prefix+'fetch other error - RuntimeError', 1)
         last_exception = 'RuntimeError: ' + str(e)
     except asyncio.CancelledError:
         raise
     except Exception as e:
         last_exception = 'Exception: ' + str(e)
-        stats.stats_sum('fetch surprising error', 1)
-        LOGGER.info('Saw surprising exception in fetcher working on %s:\n%s', mock_url or url.url, last_exception)
+        stats.stats_sum(stats_prefix+'fetch surprising error', 1)
+        LOGGER.info('Saw surprising exception in fetcher working on %s:\n%s', url.url, last_exception)
         traceback.print_exc()
-
-
 
     if last_exception is not None:
         LOGGER.debug('we failed working on %s, the last exception is %s', mock_url or url.url, last_exception)
         return FetcherResponse(None, None, None, None, None, False, last_exception)
+        LOGGER.info('we failed working on %s, the last exception is %s', url.url, last_exception)
+        return FetcherResponse(None, None, None, None, None, None, False, last_exception)
 
+    fr = FetcherResponse(response, body_bytes, ip, response.request_info.headers,
     # create new class response not to bring entire asyncio Response class along the workflow (memory leak)
     resp = Resp(url=response.url,
                 status = response.status,
@@ -317,7 +307,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
     if resp.status >= 500:
         LOGGER.debug('server returned http status %d', resp.status)
 
-    stats.stats_sum('fetch bytes', len(body_bytes) + len(resp.raw_headers))
+    stats.stats_sum(stats_prefix+'fetch bytes', len(body_bytes) + len(response.raw_headers))
 
     stats.stats_sum(stats_prefix+'fetch URLs', 1)
     stats.stats_sum(stats_prefix+'fetch http code=' + str(resp.status), 1)

@@ -2,16 +2,17 @@
 Most testing of cocrawler is done by fake crawling, but there are a few things...
 '''
 
-import asyncio
 import tempfile
 import os
+import pytest
 
 import cocrawler
 import cocrawler.config as config
 from cocrawler.urls import URL
 
 
-def test_cocrawler(capsys):
+@pytest.mark.asyncio
+async def test_cocrawler(capsys):
     config.config(None, None)
 
     # we have to get around the useragent checks
@@ -22,8 +23,9 @@ def test_cocrawler(capsys):
 
     crawler = cocrawler.Crawler()
 
-    crawler.add_url(0, {'url': URL('http://tut.by/')})
-    crawler.add_url(0, {'url': URL('http://habr.com/')})
+    crawler.add_url(0, {'url': URL('http://example1.com/')})
+    crawler.add_url(0, {'url': URL('http://example2.com/')})
+    crawler.add_url(0, {'url': URL('http://example3.com/')})
 
     assert crawler.qsize == 3
 
@@ -55,39 +57,4 @@ def test_cocrawler(capsys):
     assert err == ''
     assert len(out) >= 200  # not a very good test, but at least it is something
 
-
-def misc():
-    config.config(None, None, confighome=False)
-
-        # we have to get around the useragent checks
-    config.write('pytest', 'UserAgent', 'MyPrefix')
-    config.write('http://example.com/pytest-test-cocrawler.py', 'UserAgent', 'URL')
-    # and configure url_allowed
-    config.write('AllDomains', 'Plugins', 'url_allowed')
-
-    crawler = cocrawler.Crawler()
-
-    crawler.add_url(0, {'url': URL('http://tut.by/')})
-    crawler.add_url(0, {'url': URL('http://habr.com/')})
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(crawler.crawl())
-
-    crawler.summarize()
-
-
-def misc2():
-    import psutil
-    p = psutil.Process()
-    from multiprocessing import cpu_count
-
-    p = psutil.Process(os.getpid())
-    try:
-        p.set_cpu_affinity(list(range(cpu_count())))
-    except:
-        pass
-
-if __name__ == '__main__':
-    misc()
-    #misc2()
-    pass
+    await crawler.close()  # needed for smooth shutdown
