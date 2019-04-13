@@ -56,10 +56,10 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'http://web.archive.org/web/20170216045426id_/http://kimberleywhales.com.au/wp-json/oembed/1.0'
+            url = 'https://francemeds.com'
             #url = 'https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending'
             req = Req(url)
-            req.set_referer('http://robot-serp-bot-ci1.si.yandex.ru')
+            #req.set_referer('http://robot-serp-bot-ci1.si.yandex.ru')
             #domain = req.url.hostname_without_www
 
             #cookie = {'data':domain,'data2':'val2'}

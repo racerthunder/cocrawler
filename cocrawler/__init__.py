@@ -116,7 +116,7 @@ class Crawler:
         self.stopping = False
         self.paused = paused
         self.no_test = no_test
-        self.next_minute = 0
+        self.next_minute = time.time() + 60
         self.next_hour = time.time() + 1800 #3600 = hour
         self.max_page_size = int(config.read('Crawl', 'MaxPageSize'))
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
@@ -654,6 +654,7 @@ class Crawler:
                 traceback.print_exc()
 
                 if config.read('Crawl', 'ShutdownOnError'):
+                    stats.exitstatus=1
                     self.shutdown(ex)
 
 
@@ -1153,7 +1154,10 @@ class Crawler:
 
             except Exception as ex:
                 traceback.print_exc()
-                #break
+
+                if config.read('Crawl', 'ShutdownOnError'):
+                    stats.exitstatus=1
+                    self.shutdown(ex)
 
             if task is not None:
                 ride_along = self.generate_ridealong(task)
