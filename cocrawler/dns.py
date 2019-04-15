@@ -179,3 +179,30 @@ def entry_to_ip_key(entry):
         return
     addrs = entry[0]
     return ','.join(sorted([a['host'] for a in addrs]))
+
+def setup_resolver(ns):
+    global res
+    res = aiodns.DNSResolver(nameservers=ns, rotate=True)
+
+
+async def query(host, qtype):
+    '''
+    Use aiodns.query() to fetch dns info
+
+    Example results:
+
+    A: [ares_query_simple_result(host='172.217.26.206', ttl=108)]
+    AAAA: [ares_query_simple_result(host='2404:6800:4007:800::200e', ttl=299)]
+    NS: [ares_query_ns_result(host='ns2.google.com', ttl=None),
+         ares_query_ns_result(host='ns4.google.com', ttl=None),
+         ares_query_ns_result(host='ns1.google.com', ttl=None),
+         ares_query_ns_result(host='ns3.google.com', ttl=None)]
+    CNAME: ares_query_cname_result(cname='blogger.l.google.com', ttl=None)
+
+    Alas, querying for A www.blogger.com doesn't return both the CNAME and the next A, just the final A.
+    dig shows CNAME and A. aiodns / pycares doesn't seem to ever show the full info.
+    '''
+    if not res:
+        raise RuntimeError('no nameservers configured')
+
+    return await res.query(host, qtype)

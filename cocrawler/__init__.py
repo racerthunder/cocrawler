@@ -36,6 +36,8 @@ import psutil
 import objgraph
 from concurrent.futures import ThreadPoolExecutor
 import async_timeout
+from pyppeteer import launch
+
 
 from . import scheduler
 from . import stats
@@ -54,6 +56,7 @@ from . import dns
 from . import geoip
 from . import memory
 from . import log_master
+from . import chrome
 
 from . import stats
 from . import timer
@@ -105,6 +108,7 @@ class Crawler:
         self.mode = 'cruzer'
         self.test_mode = False # if True the first response from fetcher is cached and returned for all
         self.reuse_session = bool(config.read('Fetcher', 'ReuseSession'))
+        self.chrome_mode =  bool(config.read('Fetcher', 'ChromeMode'))
 
         self.CONFIG_TARGET_CPU_RANGE = list(range(40,70))
         self.cleanup_ssl_every = 10000 # forcelly call _cleanup_closed() on Connector
@@ -122,6 +126,11 @@ class Crawler:
         self.prevent_compression = config.read('Crawl', 'PreventCompression')
         self.upgrade_insecure_requests = config.read('Crawl', 'UpgradeInsecureRequests')
         self.max_workers = int(config.read('Crawl', 'MaxWorkers'))
+
+        if self.chrome_mode and self.max_workers !=1:
+            print('--> Forcely setting max worker to 1, as chrome mode support one tab now')
+            self.max_workers = 1
+
         self.workers = []
         self.init_generator = self.task_generator()
         self.init_urls_loaded = False # set to True once all urls from init list are consumed
@@ -183,7 +192,8 @@ class Crawler:
 
         self.timeout = aiohttp.ClientTimeout(**timeout_kwargs)
 
-        if self.reuse_session is False:
+
+        if self.reuse_session is False and self.chrome_mode is False:
 
             cookie_jar = aiohttp.DummyCookieJar()
 
@@ -195,6 +205,12 @@ class Crawler:
 
             self.pool.global_session=_session
 
+        elif self.chrome_mode:
+            # initialization is down hill in crawl method as we need to await things
+            pass
+
+        else:
+            raise ValueError('--> Unknown configuration!')
 
         self.datalayer = datalayer.Datalayer(self)
         self.robots = robots.Robots(self.robotname, 'dummy_session', self.datalayer)
@@ -420,6 +436,7 @@ class Crawler:
             LOGGER.warning('at exit, non-zero qsize=%d', self.scheduler.qsize())
 
         if self.reuse_session is False:
+            # also closes chrome instance
             await self.pool.global_session.close()
 
         self.log_master.close_all()
@@ -536,13 +553,22 @@ class Crawler:
         #         return
         # ---> end skip section <--
 
+
         _session = self.pool.get_session(ridealong['task'].session_id)
 
 
-        # f = NamedTuple
-        f = await fetcher.fetch(url, _session, req=ridealong['task'].req,
-                                max_page_size=self.max_page_size,headers=req_headers,
-                                proxy=proxy, mock_url=mock_url,dns_entry=entry)
+        if self.chrome_mode:
+
+            # _session here is a browser instance
+            f = await chrome.fetch(url, _session, req=ridealong['task'].req,
+                                   max_page_size=self.max_page_size,headers=req_headers,
+                                 proxy=proxy, mock_url=mock_url,dns_entry=entry)
+
+        else:
+            # f = NamedTuple
+            f = await fetcher.fetch(url, _session, req=ridealong['task'].req,
+                                    max_page_size=self.max_page_size,headers=req_headers,
+                                    proxy=proxy, mock_url=mock_url,dns_entry=entry)
 
 
         json_log = {'kind': ridealong['task'].req.method, 'url': url.url, 'priority': priority,
@@ -609,7 +635,6 @@ class Crawler:
                         ridealong['task'].doc.burner = {'links':linkset, 'embeds': embedset, 'base': base }
 
                 else:
-
                     html, content_data, _ = await post_fetch.post_200(f, url, priority, host_geoip,
                                                                    seed_host, json_log, self)
 
@@ -723,9 +748,9 @@ class Crawler:
         '''
         Process queue items until we run out.
         '''
+
         try:
             while True:
-
                 work = await self.scheduler.get_work()
                 priority, rand, surt = work
                 ridealong = self.scheduler.get_ridealong(surt)
@@ -736,7 +761,6 @@ class Crawler:
                         LOGGER.warning('--> No owner found in ridealong: {0}'.format(ridealong))
 
                     owner_before = ridealong['owner']
-
 
                     task = await self.fetch_and_process(work)
 
@@ -1191,6 +1215,13 @@ class Crawler:
 
         #self.control_limit_worker = asyncio.Task(self.control_limit())
 
+        if self.chrome_mode:
+            headless = False if sys.platform == 'darwin' else True
+            browser = await launch({"headless": headless, 'loop':self.loop}, args=['--no-sandbox'])
+            self.pool.global_session = browser
+
+
+
         if config.read('Crawl', 'CPUControl'):
             self.cpu_control_worker = asyncio.Task(self.control_cpu_usage())
 
@@ -1357,6 +1388,7 @@ class Crawler:
         cruzer = cls(**kwargs)
 
         loop = cruzer.loop
+
 
         #loop.set_debug(True) # https://docs.python.org/3/library/asyncio-dev.html#asyncio-debug-mode
 

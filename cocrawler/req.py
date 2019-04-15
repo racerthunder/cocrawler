@@ -88,10 +88,11 @@ class Req():
     post = SessionData(validator=dict)
     get = SessionData_Get(validator=dict) # rewrite URL instance with new url once get.__set__ is triggered
     cookies = SessionData(validator=dict)
+    chrome_cookies = SessionData(validator=list)
     multipart_post = SessionData(validator=bool)
     headers = SessionData(validator=dict)
 
-    def __init__(self, url, source_url = None, post=None, get=None, cookies=None,
+    def __init__(self, url, source_url = None, post=None, get=None, cookies=None, chrome_cookies=None,
                  multipart_post=False, headers=None):
 
         self.url = URL(url)
@@ -99,6 +100,7 @@ class Req():
         self.post = post
         self.get = get
         self.cookies = cookies
+        self.chrome_cookies = chrome_cookies # ex. [{'name':'STOK', 'value' : 'aaa', 'domain': 'majestic.com', 'url':'https://majestic.com'}]
         self.multipart_post = multipart_post
         self.headers = headers or {}
 
