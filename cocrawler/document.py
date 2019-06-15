@@ -383,7 +383,9 @@ class FormExtension(object):
 
 
 class Document(FormExtension):
+
     def __init__(self,html=None,url=None):
+
         self._html = html
         self.url = url
         self.content_data = (None, None, None, None) # tuple (content_type, content_encoding, charset, charset_used)
@@ -395,6 +397,25 @@ class Document(FormExtension):
         self._fetcher = None # fetcher complete response object, see property
         self.status = None # (int or last_exception) status taken from fetcher response object for quick access
         self._lxml_form = None
+
+    @property
+    def content_type(self):
+        return self.content_data[0] if self.content_data else None
+
+    @property
+    def body(self):
+        return self.fetcher.body_bytes
+
+    @property
+    def json(self):
+        if self.html:
+            try:
+                js = json.loads(self.html)
+                return js
+            except:
+                return None
+
+        return None
 
     def parse(self,html=None):
         """

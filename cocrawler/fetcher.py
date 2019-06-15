@@ -31,6 +31,7 @@ from . import stats
 from . import config
 from . import content
 from . resp import Resp
+from . upload import UploadFile
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,11 +51,18 @@ def _generate_form_data(**kwargs):
 
         elif value is None:
             data = [name, '']
+
+        elif isinstance(value, UploadFile):
+            data = ['file', value.body]
         else:
             raise TypeError("Unknown Type: {}".format(type(value)))
 
         if multipart:
-            form_data.add_field(*data,content_type="multipart/form-data")
+
+            if isinstance(value, UploadFile):
+                form_data.add_field(*data, filename=value.filename, content_type='application/octet-stream')
+            else:
+                form_data.add_field(*data, content_type="multipart/form-data")
         else:
             form_data.add_field(*data)
 
@@ -198,17 +206,19 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
                         session.cookie_jar.update_cookies(req.cookies)
 
                     if req.post is not None:
-                        if req.multipart_post:
+                        if req.multipart_post or req.has_file:
                             post_data = _generate_form_data(multipart_post=req.multipart_post,**req.post)
                         else:
                             post_data = req.post
                     else:
                         post_data = None
 
-                    response = await session.request(req.method,mock_url or url.url,
+                    response = await session.request(req.method,
+                                                     mock_url or url.url,
                                                      allow_redirects=allow_redirects,
                                                      max_redirects=max_redirects,
-                                                     headers=headers,data=post_data)
+                                                     headers=headers,
+                                                     data=post_data)
 
 
                     # https://aiohttp.readthedocs.io/en/stable/tracing_reference.html
@@ -272,6 +282,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         # ValueError Location: https:/// 'Host could not be detected' -- robots fetch
         # ValueError Location: http:// /URL should be absolute/ -- robots fetch
         # ValueError 'Can redirect only to http or https' -- robots fetch -- looked OK to curl!
+
         stats.stats_sum(stats_prefix+'fetch other error - ValueError', 1)
         last_exception = 'ValueErorr: ' + str(e)
     except AttributeError as e:
@@ -289,8 +300,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         traceback.print_exc()
 
     if last_exception is not None:
-
-        LOGGER.info('we failed working on %s, the last exception is %s', url.url, last_exception)
+        LOGGER.debug('we failed working on %s, the last exception is %s', url.url, last_exception)
         return FetcherResponse(None, None, None, None, None, None, False, last_exception)
 
     # create new class response not to bring entire asyncio Response class along the workflow (memory leak)

@@ -5,6 +5,7 @@ import pympler
 
 from .urls import URL
 from . import memory
+from .upload import UploadFile
 
 
 class ValidatorError(Exception):pass
@@ -80,6 +81,7 @@ class SessionData_Get(SessionData):
 
 
 
+
 class Req():
     '''
     class attributes directly change ClientSession
@@ -103,6 +105,18 @@ class Req():
         self.chrome_cookies = chrome_cookies # ex. [{'name':'STOK', 'value' : 'aaa', 'domain': 'majestic.com', 'url':'https://majestic.com'}]
         self.multipart_post = multipart_post
         self.headers = headers or {}
+
+    def post_encoded(self):
+        return ''
+
+    @property
+    def has_file(self):
+        if self.post:
+            for name, value in self.post.items():
+                if isinstance(value, UploadFile):
+                    return True
+
+        return False
 
     @property
     def method(self):

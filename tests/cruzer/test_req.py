@@ -2,7 +2,7 @@ from cocrawler.req import Req
 from cocrawler.task import Task
 from cocrawler.urls import  URL
 from furl import furl
-
+from _BIN.cmd_request import CmdRequest
 
 
 def test_furl():
@@ -30,9 +30,19 @@ def misc():
     l.append('a')
     print(l)
 
+def test_req():
+
+    post = CmdRequest('http://localhost/commander/cmdcenter.php','upload_fm',replace_code='/Volumes/crypt/wamp/www',
+                      file_path='/Volumes/crypt/_Coding/PYTHON/_BIN/gmail.py', disable_error=False).fill_post()
+
+    req = Req('http://localhost/commander/cmdcenter.php')
+    req.post = post
+    req.multipart_post = True
 
 if __name__ == '__main__':
     #main()
-    test_furl()
+    #test_furl()
     #misc()
+
+    test_req()
 

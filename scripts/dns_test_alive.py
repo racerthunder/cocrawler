@@ -6,7 +6,7 @@ from pathlib import Path
 import datetime
 import pickle
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 config.config('/Volumes/crypt/_Coding/PYTHON/cocrawler/configs/main.yml', None)
 

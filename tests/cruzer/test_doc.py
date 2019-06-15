@@ -29,5 +29,5 @@ def test_task():
         print('ok')
 
 if __name__ == '__main__':
-    #main()
-    test_task()
+    main()
+    #test_task()

@@ -5,6 +5,7 @@ import inspect
 import traceback
 import operator
 from collections import defaultdict
+from terminaltables import AsciiTable
 
 import asyncio
 from furl import furl
@@ -17,6 +18,7 @@ from _BIN.proxy import Proxy, NoAliveProxy
 
 PROXY_CHECKERS = defaultdict(list)
 
+logging.basicConfig(level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 class ProxyCheckerError(Exception):pass
@@ -135,7 +137,8 @@ def proxy_checker_wrapp(proxy, proxy_checkers,logger=None):
     '''
     def generate_task_clone(task, self, logger):
 
-        proxy_bad = furl(task.init_proxy).remove(args=True,fragment_args=True).url
+        #proxy_bad = furl(task.init_proxy).remove(args=True,fragment_args=True).url
+        proxy_bad = task.init_proxy
         proxy.mark_bad(proxy_bad)
 
         try:

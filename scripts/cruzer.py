@@ -17,6 +17,7 @@ from cocrawler.urls import URL
 import cocrawler
 
 from _BIN.tools.logs import Counter
+from _BIN.cmd_request import CmdRequest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -57,17 +58,16 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'https://francemeds.com'
-            #url = 'https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending'
+            url = 'https://www.onlinenic.com/cp_english/reg_domain/check_api.php'
+            post = {'domain':'cavoxcms.ch'}
             req = Req(url)
-            #req.set_referer('http://robot-serp-bot-ci1.si.yandex.ru')
-            #domain = req.url.hostname_without_www
+            req.post = post
 
             #cookie = {'data':domain,'data2':'val2'}
             #req.get = cookie
 
 
-            yield Task(name='download',req=req,domain=domain)
+            yield Task(name='download',req=req, domain=domain)
             break
 
 
@@ -76,13 +76,13 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , code: {2} last_url: {1} c_type: {3}'.format(task.domain,task.last_url, task.doc.status, c_type))
-            print('ip: ', task.host_ip)
-            #print(task.doc.html)3
-            #task.doc.save(save_path)
+
+            print(task.doc.html)
 
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
-            pass
+            print('last_url: {0}'.format(task.last_url))
+            print(task.doc.fetcher.body_bytes)
 
 
 if __name__ == '__main__':
@@ -91,10 +91,12 @@ if __name__ == '__main__':
     python3 cruzer.py\
     --config Crawl.MaxWorkers:5\
     --config Crawl.MaxTries:3\
-    --config Crawl.DumpMemory:True\
+    --config Crawl.PageTimeout:30\
     --config Crawl.AllowExternalRedir:False\
     --loglevel INFO\
-    --config Fetcher.ReuseSession:True
+    --config Fetcher.ReuseSession:True\
+    --config Fetcher.CrawlPrivate:True\
+    --config Fetcher.CrawlLocalhost:True\
     '''
     Cruzer.run()
 

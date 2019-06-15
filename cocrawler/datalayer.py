@@ -3,12 +3,28 @@ import logging
 import cachetools.ttl
 import peewee_async
 from copy import deepcopy
+import peewee
+
 
 from . import config
 from . import memory
 
 LOGGER = logging.getLogger(__name__)
 __NAME__ = 'datalayer seen memory'
+
+
+class SqlHelper():
+    def __init__(self, manager):
+        self.manager = manager
+
+
+    async def exists(self, query):
+        try:
+            res = await self.manager.get(query)
+        except peewee.DoesNotExist:
+            res = None
+
+        return False if res is None else True
 
 
 class Datalayer:
@@ -24,7 +40,6 @@ class Datalayer:
         memory.register_debug(self.memory)
 
         self._a_manager = None
-
 
     def peewee_setter(self,value):
         '''
@@ -61,6 +76,8 @@ class Datalayer:
             a_manager.database.allow_sync = False
 
             self._a_manager = a_manager
+            setattr(self._a_manager, 'sql', SqlHelper(self._a_manager)) # helper shortcut
+            setattr(self.cocrawler, 'peewee', self._a_manager) # shortcut for quick access
 
 
     def peewee_getter(self):

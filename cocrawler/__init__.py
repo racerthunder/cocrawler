@@ -208,6 +208,8 @@ class Crawler:
         elif self.chrome_mode:
             # initialization is down hill in crawl method as we need to await things
             pass
+        elif self.reuse_session is True:
+            pass
 
         else:
             raise ValueError('--> Unknown configuration!')
@@ -527,7 +529,9 @@ class Crawler:
                     fr_dummy = namedtuple('fr_dummy','response last_exception')
                     fr_dummy.response = None # required here
                     fr_dummy.last_exception = 'dns_no_entry'
-                    await self.make_callback(ridealong,fr_dummy)
+                    fr_dummy.ip = None
+                    fr_dummy.body_bytes = None
+                    await self.make_callback(ridealong, fr_dummy)
 
                     return ridealong['task']
                 else:
@@ -689,12 +693,12 @@ class Crawler:
         task.doc.fetcher = fr
         task.doc.status = fr.response.status if fr.response else fr.last_exception
         task.last_url = str(fr.response.url) if fr.response else None
-        task.host_ip = fr.ip
+        task.host_ip = getattr(fr, 'ip', None)
 
         return task
 
-    async def load_task_function(self,ridealong,fr):
-            parent_task = self.fill_task(ridealong['task'],fr)
+    async def load_task_function(self, ridealong, fr):
+            parent_task = self.fill_task(ridealong['task'], fr)
 
             task_name = 'task_{0}'.format(parent_task.name)
             task_func = getattr(self,task_name,None)
