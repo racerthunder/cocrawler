@@ -6,7 +6,7 @@ import asyncio
 
 class Task():
 
-    def __init__(self,name,req,**kwargs):
+    def __init__(self, name, req, **kwargs):
         self.req = req
         self.init_proxy = None # in proxy mode keep track of the original proxy to mark it as bad if any redir happens
         self.run_burner = False # parse links, embeds from html, off by default, result is attached to .doc.burner

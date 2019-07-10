@@ -208,19 +208,19 @@ def test_checker():
     req1 = Req('http://google.com')
     t1 = Task(name='t1',req=req1)
     t1.doc.html = 'find me token'
-    t1.doc.status = 200
+    t1.doc.status = 429
 
 
-    tproxy = TaskProxy(need=True)
-    res = ('token' in tproxy.doc.select())
-
-    checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
-
-
-    # tproxy2 = TaskProxy()
-    # res = (tproxy2.doc.status != 403)
+    # tproxy = TaskProxy(need=True)
+    # res = ('token' in tproxy.doc.select())
     #
-    # checker = ProxyChecker(*tproxy2.get_cmd(), condition=any)
+    # checker = ProxyChecker(*tproxy.get_cmd(), condition=any)
+
+
+    tproxy2 = TaskProxy()
+    res = (tproxy2.doc.status != 429)
+
+    checker = ProxyChecker(*tproxy2.get_cmd(), condition=any)
 
     print(checker.validate(t1))
 

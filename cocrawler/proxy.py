@@ -18,7 +18,6 @@ from _BIN.proxy import Proxy, NoAliveProxy
 
 PROXY_CHECKERS = defaultdict(list)
 
-logging.basicConfig(level=logging.INFO)
 _logger = logging.getLogger(__name__)
 
 class ProxyCheckerError(Exception):pass
@@ -162,9 +161,16 @@ def proxy_checker_wrapp(proxy, proxy_checkers,logger=None):
     def proxy_inner(method):
         @wraps(method)
         async def _impl(self,task):
+
+            skip_check = False
+            good_status = getattr(self, 'proxy_good_status', None)
+
+            if good_status and task.doc.status is not None and task.doc.status in good_status:
+                skip_check = True
+
             LOGGER = logger or _logger
 
-            if not all([checker.validate(task) for checker in proxy_checkers]):
+            if not skip_check and not all([checker.validate(task) for checker in proxy_checkers]):
 
                 LOGGER.debug('--> [Bad Proxy] for task: {0}, {1}'.format(task.name, task.req.url.url))
 
@@ -220,7 +226,7 @@ class CruzerProxy(Crawler):
 
     def get_proxy(self):
         # overload this method to cutom setup proxy isntance
-        return Proxy()
+        return Proxy(shuffle=True)
 
     def new_proxy(self):
         try:

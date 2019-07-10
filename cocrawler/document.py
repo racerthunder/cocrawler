@@ -392,7 +392,7 @@ class Document(FormExtension):
                                 #charset = what we detect using html,
                                 #charset_used = what we eventually used to decode
 
-        self.burner = None # result of the burner work = (links, embeds, base)
+        self.burner = None # result of the burner work = {'links':linkset, 'embeds': embedset, 'base': base }
         self._etree = None
         self._fetcher = None # fetcher complete response object, see property
         self.status = None # (int or last_exception) status taken from fetcher response object for quick access
