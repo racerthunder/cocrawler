@@ -3,7 +3,7 @@ import asyncio
 
 async def main():
     master = LogMaster('cruz')
-    await master.write('/Volumes/crypt/_Coding/PYTHON/cocrawler/log/test.log.txt','linetowrite')
+    await master.write('/Volumes/crypt/_programm/_DropBox/Dropbox/_Coding/PYTHON/cocrawler/log/test.log.txt','linetowrite')
 
 
 if __name__ == '__main__':

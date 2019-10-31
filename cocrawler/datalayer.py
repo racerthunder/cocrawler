@@ -4,7 +4,7 @@ import cachetools.ttl
 import peewee_async
 from copy import deepcopy
 import peewee
-
+import async_timeout
 
 from . import config
 from . import memory
@@ -52,7 +52,11 @@ class Datalayer:
             __params = deepcopy(database.__dict__.get('connect_params') or database.__dict__.get('connect_kwargs'))
             if __params is None:
                 raise KeyError('--> db params cant be None ')
+            if 'password' not in __params and 'passwd' not in __params:
+                raise ValueError('--> No password found in connection string')
 
+            if 'password' not in __params:
+                __params['password'] = __params['passwd']
             __params['db_name']=database.database
 
             return __params

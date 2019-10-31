@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 
 def misc():
-    path = '/Volumes/crypt/_Coding/PYTHON/penetration/wordpress/Duplicator/MEMORY_DEBUG_1.txt'
+    path = '/Volumes/crypt/_programm/_DropBox/Dropbox/_Coding/PYTHON/penetration/wordpress/Duplicator/MEMORY_DEBUG_1.txt'
 
     lines = [int(line.strip().split('|')[2].strip()) for line in open(str(path)) if 'seen_set' in line]
     delta_ls = []

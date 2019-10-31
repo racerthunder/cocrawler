@@ -58,11 +58,10 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'https://www.onlinenic.com/cp_english/reg_domain/check_api.php'
-            post = {'domain':'cavoxcms.ch'}
-            req = Req(url)
-            req.post = post
+            url = 'http://divas.by/stili/contemp'
 
+            req = Req(url)
+            #req.set_referer('http://google.com')
             #cookie = {'data':domain,'data2':'val2'}
             #req.get = cookie
 
@@ -77,12 +76,13 @@ class Cruzer(cocrawler.Crawler):
         if task.doc.status  == 200:
             print('good: {0} , code: {2} last_url: {1} c_type: {3}'.format(task.domain,task.last_url, task.doc.status, c_type))
 
-            print(task.doc.html)
+            if 'контемпорари' in task.doc.html:
+                print(task.doc.html)
 
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
             print('last_url: {0}'.format(task.last_url))
-            print(task.doc.fetcher.body_bytes)
+            #print(task.doc.fetcher.body_bytes)
 
 
 if __name__ == '__main__':

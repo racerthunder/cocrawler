@@ -18,7 +18,7 @@ from six import BytesIO, StringIO
 from weblib.etree import render_html
 
 def get_html():
-    path = Path('/Volumes/crypt/_Coding/PYTHON/TEMP/buffer.html')
+    path = Path('/Volumes/crypt/_programm/_DropBox/Dropbox/_Coding/PYTHON/TEMP/buffer.html')
     with path.open(encoding='utf-8') as f:
         html = f.read()
     return html

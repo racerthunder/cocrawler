@@ -14,7 +14,7 @@ from cocrawler.req import Req
 import peewee
 
 from _BIN.proxy import Proxy
-from _DB.schemes.secondhand import diff_2018_feb_mar_apr,database
+from _DB.schemes.secondhand import Majestic_site, database
 
 
 TOTAL = 1
@@ -68,8 +68,9 @@ class Cruzer(cocrawler.Crawler):
     async def task_download(self,task):
 
         try:
-            selector = await self.datalayer.peewee.get(diff_2018_feb_mar_apr,diff_2018_feb_mar_apr.id==700002344534)
-            print('sleeeet: ',selector)
+            sql =  Majestic_site.select().where((Majestic_site.donor==2686092))
+            selector = await self.datalayer.peewee.sql.exists(sql)
+            print('--> exisyts', selector)
 
         except peewee.DoesNotExist:
             print('--> not recrods found')
@@ -91,9 +92,6 @@ class Cruzer(cocrawler.Crawler):
         # req = Req(url)
         # yield Task(name='second',req=req)
 
-    async def task_second(self,task):
-        selector = await self.datalayer.peewee.execute(diff_2018_feb_mar_apr.select().where(diff_2018_feb_mar_apr.domain=='esnips.com'))
-        print('counnttt: ',selector)
 
 
 

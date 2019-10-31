@@ -8,7 +8,7 @@ import pickle
 
 logging.basicConfig(level=logging.INFO)
 
-config.config('/Volumes/crypt/_Coding/PYTHON/cocrawler/configs/main.yml', None)
+config.config('/Volumes/crypt/_programm/_DropBox/Dropbox/_Coding/PYTHON/cocrawler/configs/main.yml', None)
 
 files = config.read('Fetcher', 'Nameservers').get('File')
 
