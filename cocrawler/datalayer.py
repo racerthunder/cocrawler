@@ -72,7 +72,12 @@ class Datalayer:
         if self._a_manager is None:
             async_connect_params = get_async_params(value)
 
-            a_database = peewee_async.MySQLDatabase(async_connect_params['db_name'], host=async_connect_params['host'], port=async_connect_params['port'], user=async_connect_params['user'], password=async_connect_params['password'])
+            a_database = peewee_async.PooledMySQLDatabase(async_connect_params['db_name'],
+                                                    host=async_connect_params['host'],
+                                                    port=async_connect_params['port'],
+                                                    user=async_connect_params['user'],
+                                                    password=async_connect_params['password'],
+                                                    max_connections=100)
 
 
             a_manager = peewee_async.Manager(a_database, loop=self.cocrawler.loop)

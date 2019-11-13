@@ -265,7 +265,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         stats.stats_sum(stats_prefix+'fetch ClientError', 1)
         detailed_name = str(type(e).__name__)
         dns_line = None #'dns [{0}]: {1}'.format(dns_log[0],dns_log[1])
-        last_exception = 'ClientError: ' + detailed_name + ': ' + str(e) + '{0}'.format(dns_line or '')
+        last_exception = 'ClientError: ' + detailed_name + ': ' + traceback.format_exc() + '{0}'.format(dns_line or '')
         body_bytes = b''.join(blocks)
         if len(body_bytes):
             is_truncated = 'disconnect'  # testme WARC
@@ -275,7 +275,7 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         # unfortunately many ssl errors raise and have tracebacks printed deep in aiohttp
         # so this doesn't go off much
         stats.stats_sum(stats_prefix+'fetch SSL error', 1)
-        last_exception = 'CertificateError: ' + str(e)
+        last_exception = 'CertificateError: ' + traceback.format_exc()
     except ValueError as e:
         # no A records found -- raised by our dns code
         # aiohttp raises:
@@ -284,24 +284,24 @@ async def fetch(url, session,req=None, headers=None, proxy=None, mock_url=None,d
         # ValueError 'Can redirect only to http or https' -- robots fetch -- looked OK to curl!
 
         stats.stats_sum(stats_prefix+'fetch other error - ValueError', 1)
-        last_exception = 'ValueErorr: ' + str(e)
+        last_exception = 'ValueErorr: ' + traceback.format_exc()
     except AttributeError as e:
         stats.stats_sum(stats_prefix+'fetch other error - AttributeError', 1)
-        last_exception = 'AttributeError: ' + str(e)
+        last_exception = 'AttributeError: ' + traceback.format_exc()
     except RuntimeError as e:
         stats.stats_sum(stats_prefix+'fetch other error - RuntimeError', 1)
-        last_exception = 'RuntimeError: ' + str(e)
+        last_exception = 'RuntimeError: ' + traceback.format_exc()
     except asyncio.CancelledError:
         raise
     except Exception as e:
-        last_exception = 'Exception: ' + str(e)
+        last_exception = 'Exception: ' + traceback.format_exc()
         stats.stats_sum(stats_prefix+'fetch surprising error', 1)
         LOGGER.info('Saw surprising exception in fetcher working on %s:\n%s', url.url, last_exception)
         traceback.print_exc()
 
     if last_exception is not None:
         LOGGER.debug('we failed working on %s, the last exception is %s', url.url, last_exception)
-        return FetcherResponse(None, None, None, None, None, None, False, last_exception)
+        return FetcherResponse(None, body_bytes, None, None, None, None, False, last_exception)
 
     # create new class response not to bring entire asyncio Response class along the workflow (memory leak)
     resp = Resp(url=response.url,

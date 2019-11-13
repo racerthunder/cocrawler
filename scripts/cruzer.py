@@ -9,6 +9,7 @@ from subprocess import check_output
 import time
 import asyncio
 from yarl import URL as yURL
+import json
 
 
 from cocrawler.task import Task
@@ -58,12 +59,13 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'http://divas.by/stili/contemp'
+            url = 'http://safina.by/blog/xmlrpc.php'
+            body = """<?xml version="1.0"?><methodCall><methodName>wp.getUsersBlogs</methodName>
+        <params><param><value>%s</value></param><param><value>%s</value></param></params></methodCall>""" % ('safina', 'safpasswordwordpress')
 
             req = Req(url)
-            #req.set_referer('http://google.com')
-            #cookie = {'data':domain,'data2':'val2'}
-            #req.get = cookie
+            req.post = body
+            req.set_content_type("application/xml")
 
 
             yield Task(name='download',req=req, domain=domain)
@@ -75,15 +77,19 @@ class Cruzer(cocrawler.Crawler):
 
         if task.doc.status  == 200:
             print('good: {0} , code: {2} last_url: {1} c_type: {3}'.format(task.domain,task.last_url, task.doc.status, c_type))
-
-            if 'контемпорари' in task.doc.html:
-                print(task.doc.html)
+            print(task.doc.html)
+            print('----> body')
+            print(task.doc.body_unicode)
 
         else:
             print('bad: {0}, error: {1}'.format(task.domain,task.doc.status))
             print('last_url: {0}'.format(task.last_url))
             #print(task.doc.fetcher.body_bytes)
 
+
+def misc():
+    cookie = {'data':'dddd','data2':'val2'}
+    print(type(json.dumps(cookie)))
 
 if __name__ == '__main__':
     '''

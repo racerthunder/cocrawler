@@ -19,6 +19,23 @@ from .document import Document
 
 LOGGER = logging.getLogger(__name__)
 
+def parse_sub_string(text, before, after, include_ends=False):
+    '''
+
+    :param text:
+    :param before:
+    :param after:
+    :param include_ends: include before and after tokens
+    :return:
+    '''
+    start_indx = text.find(before)
+    end_indx = text.find(after,start_indx)
+    if include_ends:
+        sub_str = text[(start_indx-len(before))+len(before):(end_indx+len(after))]
+    else:
+        sub_str = text[start_indx+len(before):end_indx]
+    return sub_str
+
 def soup_html(html, html_bytes, headers, burn_prefix='', url=None):
 
     body_soup = None
@@ -177,6 +194,14 @@ def find_head_links_soup(head_soup):
         embeds.add(tag.get('src'))
     for tag in head_soup.find_all(href=True):
         embeds.add(tag.get('href'))
+
+    for tag in head_soup.find_all('style', attrs={'type':'text/css'}):
+        #embeds.add(tag.get('href'))
+        line = tag.contents[0].string
+        if line is not None and '@import' in line  and 'url(' in line:
+            _href = parse_sub_string(line.strip(), 'url(', ');')
+            embeds.add(_href.strip())
+
     return set(), embeds
 
 

@@ -383,8 +383,10 @@ class FormExtension(object):
 
 
 class Document(FormExtension):
-
-    def __init__(self,html=None,url=None):
+    '''
+    in case of an error html is None but headers, body_bytes are filled what was provided by the response
+    '''
+    def __init__(self, html=None, url=None):
 
         self._html = html
         self.url = url
@@ -404,7 +406,15 @@ class Document(FormExtension):
 
     @property
     def body(self):
+        # bytes body
         return self.fetcher.body_bytes
+
+    @property
+    def body_unicode(self):
+        _body = self.decode_body()
+        if isinstance(_body, (bytes)):
+            _body = str(_body, encoding='utf-8')
+        return _body
 
     @property
     def json(self):
@@ -482,7 +492,21 @@ class Document(FormExtension):
 
     @property
     def headers(self):
-        return self.fetcher.response.raw_headers
+        # raw_headers is a bytes key and values which are not decoded
+        #return self.fetcher.response.raw_headers
+        return dict(self.fetcher.response.headers)
+
+    def decode_body(self):
+
+        body_bytes = self.fetcher.body_bytes
+        if self.content_data[1]:
+            content_type, content_encoding, charset, charset_used = self.content_data
+
+            if content_encoding and content_encoding != 'identity':
+                with stats.record_burn('response body decompress'):
+                    body_bytes = content.decompress(self.fetcher.body_bytes, content_encoding)
+
+        return body_bytes
 
     def save(self, path):
         """
@@ -497,19 +521,8 @@ class Document(FormExtension):
             except OSError:
                 pass
 
-        body_bytes = self.fetcher.body_bytes
-        if self.content_data[1]:
-            content_type, content_encoding, charset, charset_used = self.content_data
 
-            if content_encoding and content_encoding != 'identity':
-                with stats.record_burn('response body decompress'):
-                    body_bytes = content.decompress(self.fetcher.body_bytes, content_encoding)
-
-
-            #
-            # charset, detect = content.my_get_charset(charset, body_bytes)
-            #
-            # body, charset_used = content.my_decode(body_bytes, charset, detect)
+        body_bytes = self.decode_body()
 
 
         with open(path, 'wb') as out:

@@ -609,7 +609,7 @@ class Crawler:
             # ridealong should be dict otherwise its an error
             if not isinstance(__ridealong, dict):
                 fr_dummy = namedtuple('fr_dummy','response last_exception')
-                fr_dummy.response = None # required here
+                fr_dummy.response = f.response
                 fr_dummy.last_exception = __ridealong
                 await self.make_callback(ridealong,fr_dummy)
 

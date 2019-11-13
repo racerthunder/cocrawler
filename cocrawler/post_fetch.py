@@ -173,6 +173,13 @@ async def handle_redirect(f, url, ridealong, priority, host_geoip, json_log, cra
             LOGGER.debug('--> No external redirects allowed: {0} to {1}'.format(url.url, next_url.url))
             queue_next = False
 
+    if config.read('Crawl', 'AllowRedir') is False:
+        if is_redirect(f.response):
+            # allow redirs like wwww or https
+            if redir_kind is None:
+                LOGGER.debug('--> No redirect is allowed: {0} to {1}'.format(url.url, next_url.url))
+                queue_next = False
+
     priority += 1
 
     if samesurt and redir_kind != 'same':
@@ -226,7 +233,7 @@ async def post_200(f, url, ridealong, priority, host_geoip, json_log, crawler, r
 
     content_data = (content_type, None, None, None) # attached to task.doc
 
-    html_types = set(('text/html', 'text/css', '', 'application/xhtml+xml','application/json'))
+    html_types = set(('text/html', 'text/xml', 'text/css', '', 'application/xhtml+xml','application/json'))
 
     if content_type in html_types:
         if content_encoding != 'identity':

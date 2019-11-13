@@ -31,13 +31,10 @@ def misc():
     print(l)
 
 def test_req():
-
-    post = CmdRequest('http://localhost/commander/cmdcenter.php','upload_fm',replace_code='/Volumes/crypt/wamp/www',
-                      file_path='/Volumes/crypt/_programm/_DropBox/Dropbox/_Coding/PYTHON/_BIN/gmail.py', disable_error=False).fill_post()
-
-    req = Req('http://localhost/commander/cmdcenter.php')
-    req.post = post
-    req.multipart_post = True
+    import json
+    req = Req('http://google.com')
+    req.post= json.dumps({'da':'aa'})
+    print(req)
 
 if __name__ == '__main__':
     #main()

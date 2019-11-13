@@ -57,7 +57,7 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'https://francemeds.com'
+            url = 'http://cialisapothekech.com'
             #url = 'https://www.whatismybrowser.com/detect/what-http-headers-is-my-browser-sending'
             req = Req(url)
 

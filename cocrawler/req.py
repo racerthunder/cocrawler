@@ -12,6 +12,9 @@ class ValidatorError(Exception):pass
 
 
 class Validator():
+    '''
+
+    '''
     _types = [dict,list,str,bool,URL]
 
     def __init__(self,val):
@@ -21,18 +24,17 @@ class Validator():
         return any([x for x in self._types if x==obj])
 
     def validate(self,value):
-        if not isinstance(self.val,list):
+        if not isinstance(self.val, list):
             vls = [self.val,]
         else:
             vls = self.val
 
+        if not any([True if isinstance(value,validator) and self.istype(validator) else False for validator in vls]):
+            raise ValidatorError(' value "{0}" is not an instance of [{1}]'.format(value,self.val))
+
         for validator in vls:
 
-            if self.istype(validator):
-                if not isinstance(value,validator):
-                    raise ValidatorError(' value "{0}" is not an instance of [{1}]'.format(value,self.val))
-
-            elif isfunction(validator):
+            if isfunction(validator):
                 try:
                     validator(value)
                 except Exception as ex:
@@ -41,7 +43,7 @@ class Validator():
                 pass
 
 class SessionData():
-    def __init__(self,data=None,validator=None):
+    def __init__(self,data=None, validator=None):
         self.init_data = data
         self._data = WeakKeyDictionary()
         self.validator = Validator(validator)
@@ -87,7 +89,7 @@ class Req():
     class attributes directly change ClientSession
     '''
     url = SessionData(validator=URL)
-    post = SessionData(validator=dict)
+    post = SessionData(validator=[dict, str]) # any of these
     get = SessionData_Get(validator=dict) # rewrite URL instance with new url once get.__set__ is triggered
     cookies = SessionData(validator=dict)
     chrome_cookies = SessionData(validator=list)
@@ -111,7 +113,7 @@ class Req():
 
     @property
     def has_file(self):
-        if self.post:
+        if self.post and isinstance(self.post, (dict)):
             for name, value in self.post.items():
                 if isinstance(value, UploadFile):
                     return True
@@ -136,6 +138,9 @@ class Req():
 
     def set_referer(self,val):
         self.update_headers({'Referer':val})
+
+    def set_content_type(self, val):
+        self.update_headers({"Content-Type": val})
 
     def reset(self):
         self.headers = None
