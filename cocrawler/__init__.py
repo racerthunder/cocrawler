@@ -647,7 +647,7 @@ class Crawler:
                 ridealong['task'].doc.content_data = content_data
 
 
-            await self.make_callback(ridealong,f)
+            await self.make_callback(ridealong, f)
 
 
 
@@ -673,19 +673,23 @@ class Crawler:
     async def make_callback(self,ridealong,f):
 
         with stats.record_burn('--> cruzer callback burn "{0}"'.format(ridealong['task'].name)):
-            try:
 
-                await self.load_task_function(ridealong, f)
+                try:
+                    with async_timeout.timeout(int(config.read('Tasks', 'TaskTimeout'))):
+                        await self.load_task_function(ridealong, f)
 
-            except ValueError as e:  # if it pukes, ..
-                LOGGER.info('parser raised %r', e)
+                except ValueError as e:  # if it pukes, ..
+                    LOGGER.info('parser raised %r', e)
 
-            except Exception as ex:
-                traceback.print_exc()
+                except asyncio.TimeoutError:
+                    LOGGER.warning('--> Task timeout for url: {0}'.format(ridealong['task'].req.url.url))
 
-                if config.read('Crawl', 'ShutdownOnError'):
-                    stats.exitstatus=1
-                    self.shutdown(ex)
+                except Exception as ex:
+                    traceback.print_exc()
+
+                    if config.read('Crawl', 'ShutdownOnError'):
+                        stats.exitstatus=1
+                        self.shutdown(ex)
 
 
 
@@ -712,7 +716,8 @@ class Crawler:
                     # no new task will be yielded, run function and return
                     f = asyncio.ensure_future(task_func(parent_task),loop=self.loop)
                     # result is not needed here, just wait for completion
-                    await f
+                    with stats.coroutine_state('task running'):
+                        await f
 
                 elif inspect.isasyncgenfunction(task_func):
                     # we have a generator, load all tasks to the queue
@@ -738,7 +743,9 @@ class Crawler:
             except Exception as ex:
                 LOGGER.warning('--> [TASK GENERATOR ERROR, SEE TRACEBACK BELOW]')
                 traceback.print_exc()
-                self.shutdown(message=traceback.format_exc())
+
+                if config.read('Crawl', 'ShutdownOnError'):
+                    self.shutdown(message=traceback.format_exc())
 
             if self.reuse_session:
                 self.pool.add_finished_task(parent_task.session_id,parent_task.name)

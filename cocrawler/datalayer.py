@@ -77,7 +77,8 @@ class Datalayer:
                                                     port=async_connect_params['port'],
                                                     user=async_connect_params['user'],
                                                     password=async_connect_params['password'],
-                                                    max_connections=100)
+                                                    max_connections=100,
+                                                    pool_recycle=30)
 
 
             a_manager = peewee_async.Manager(a_database, loop=self.cocrawler.loop)

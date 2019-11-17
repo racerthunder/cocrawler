@@ -44,20 +44,23 @@ Crawl:
   MaxDepth: 3
   MaxTries: 1
   PageTimeout: 10
+  ConnectTimeout: 0.  # seconds, 0.=none
   RetryTimeout: 2
   MaxWorkers: 5
   MaxHostQPS: 10
   MaxPageSize: 1000000
   PreventCompression: False
   UpgradeInsecureRequests: 1  # send this http header
-  ConnectTimeout: 2  # seconds, 0.=none
 #  GlobalBudget: None
 #  DomainBudget: None
 #  HostBudget: None
   QueueEmbeds: False
   DebugMemory: False  # if true print memory usage to stdout
   DumpMemory: False # if true save memory usage to file everyhour
-
+  
+Tasks:
+  TaskTimeout: 30 # max number of seconds task is awaited
+  
 Robots:
   MaxTries: 4
   RobotsCacheSize: 100000  # 40mb-ish
@@ -71,7 +74,7 @@ Fetcher:
   DNSWarmupLog: dns_log.pickle
   DNSWarmupInterval: 1 # days, how often to check all ns servers, 0 = check every time before cruzer
   DNSMinAlive: 5 # min number of alive ns to allow work
-  DNSTimeout: 2 # seconds, max time for check
+  DNSTimeout: 5 # seconds, max time for check
   DNSWarmupDomain: mail.ru # domain to query ns agains
   CleanClosedSSL: True # every 10000 requests, forcelly call _cleanup_closed() on Connector  
   NameserverTries: 3
@@ -89,7 +92,7 @@ GeoIP:
 
 CarbonStats:
  Enabled: False
- Server: 51.15.139.130
+ Server: 163.172.143.239
  Port: 2004
 
 Plugins:

